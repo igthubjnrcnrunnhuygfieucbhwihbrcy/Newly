@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
-"""ZelfSync + Newly browser-in-browser (Raspberry Pi 5). Versie 0.7.
+"""ZelfSync + Newly browser-in-browser (Raspberry Pi 5). Versie 0.8.
 
 Taken:
 1. Sync-server: accounts, bladwijzers, geschiedenis (SQLite).
 2. Browser-in-browser op http://pi-adres:8765/ :
    - Tabbladen, terug/vooruit, volledige en veilige weergave
-   - Nieuwsearch: de eigen zoekmachine van Newly. Geen externe zoekdienst:
-     er wordt gezocht in je eigen index op de Pi (groeit mee met wat je
-     bezoekt), in je bladwijzers/geschiedenis, in Wikipedia (nl) en er
-     worden webadressen geraden.
+   - Nieuwsearch: de eigen zoekmachine van Newly (eigen index op de Pi,
+     bladwijzers/geschiedenis, Wikipedia nl, webadres-radiging)
    - AI-assistent via je eigen Mistral API-sleutel, opgeslagen op de Pi
-3. Volledige proxy-engine: ALLE bronnen van een site (css, js, afbeeldingen,
-   api-calls, formulieren) lopen via de Pi. Zo geen CORS-, referrer- of
-   oorsprong-blokkades en zien sites eruit zoals bedoeld.
-4. Ingebouwde advertentieblokkering: bekende advertentie-/trackerdomeinen
-   worden geblokkeerd op de Pi zelf.
+3. Volledige proxy-engine: ALLE bronnen (css, js, afbeeldingen, api-calls,
+   formulieren, video met Range-verzoeken) lopen via de Pi.
+   Links van moderne JavaScript-sites werken door pushState-opvang.
+4. Ingebouwde advertentieblokkering op de Pi zelf.
+5. Knop "Echte browser": opent een echte Chromium op de Pi via schermdeling
+   (poort 6080, zie install-pi.sh). Daar werkt alles: video's, inloggen,
+   en sites die servers blokkeren.
 
 Start:      python3 server.py      (poort 8765, of ZELFSYNC_PORT=...)
 Service:    zie install-pi.sh (systemd)
@@ -42,7 +42,7 @@ MAX_PAGE = 6 * 1024 * 1024
 PORT = int(os.environ.get("ZELFSYNC_PORT", "8765"))
 LLM_MODEL = os.environ.get("LLM_MODEL", "mistral-small-latest")
 UA_STR = ("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
-          "(KHTML, like Gecko) Chrome/124.0 Safari/537.36 NewlyBrowser/0.7")
+          "(KHTML, like Gecko) Chrome/124.0 Safari/537.36 NewlyBrowser/0.8")
 
 INDEX_HTML = """<!DOCTYPE html>
 <html lang="nl">
@@ -67,7 +67,6 @@ INDEX_HTML = """<!DOCTYPE html>
    color: var(--tekst); font-size: 17px; cursor: pointer; display: flex; align-items: center;
    justify-content: center; flex: none; transition: background .15s; }
  .iconbtn:hover { background: var(--vlak2); }
- .iconbtn:disabled { opacity: .35; cursor: default; }
  .addr { flex: 1; display: flex; align-items: center; background: var(--invoer);
    border: 1px solid var(--rand); border-radius: 999px; padding: 0 14px; min-width: 0;
    transition: border-color .15s; }
@@ -145,22 +144,34 @@ INDEX_HTML = """<!DOCTYPE html>
    box-shadow: 0 6px 22px var(--schaduw); }
  .hint { font-size: 12.5px; color: var(--subtekst); margin-top: 30px; text-align: center;
    max-width: 460px; line-height: 1.5; }
+ @media (max-width: 700px) {
+   .iconbtn { width: 33px; height: 33px; font-size: 15px; }
+   .iconbtn.vw, .iconbtn.th { display: none; }
+   .tab { min-width: 92px; max-width: 150px; }
+   .tab .tnm { font-size: 12px; }
+   .plus { margin-bottom: 4px; }
+   #start { padding: 26px 14px 20px; }
+   .logo { font-size: 30px; }
+   #panel, #ai { left: 8px; right: 8px; width: auto; top: 100px; }
+   .hint { margin-top: 20px; }
+ }
 </style>
 </head>
 <body>
 <header>
   <button class="iconbtn" onclick="terug()" title="Terug">&#8592;</button>
-  <button class="iconbtn" onclick="vooruit()" title="Vooruit">&#8594;</button>
+  <button class="iconbtn vw" onclick="vooruit()" title="Vooruit">&#8594;</button>
   <button class="iconbtn" onclick="ververs()" title="Verversen">&#8635;</button>
   <button class="iconbtn" onclick="naarStart()" title="Startpagina">&#8962;</button>
   <form class="addr" onsubmit="return ga()">
     <span class="z">&#128269;</span>
-    <input id="url" placeholder="Zoek met Nieuwsearch of typ een webadres" autocomplete="off" spellcheck="false">
+    <input id="url" placeholder="Zoek of typ een webadres" autocomplete="off" spellcheck="false">
   </form>
-  <button class="iconbtn" onclick="sla()" title="Bladwijzer maken (Ctrl+D)">&#9733;</button>
+  <button class="iconbtn" onclick="sla()" title="Bladwijzer (Ctrl+D)">&#9733;</button>
   <button class="iconbtn" onclick="openDirect()" title="Openen buiten Newly">&#8599;</button>
+  <button class="iconbtn" onclick="echteModus()" title="Echte browser op de Pi: video, inloggen, alles werkt daar">&#128250;</button>
   <button class="iconbtn" onclick="aiPanel()" title="AI-assistent">&#129302;</button>
-  <button class="iconbtn" onclick="thema()" title="Licht/donker">&#9788;</button>
+  <button class="iconbtn th" onclick="thema()" title="Licht/donker">&#9788;</button>
   <button class="iconbtn" onclick="menu()" title="Menu">&#9776;</button>
 </header>
 <div class="tabbar">
@@ -178,7 +189,7 @@ INDEX_HTML = """<!DOCTYPE html>
     </form>
     <div id="results"></div>
     <div class="tegels" id="tegels"></div>
-    <div class="hint">Jouw eigen browser, op jouw eigen Pi.<br>Nieuwsearch zoekt in je eigen index en in Wikipedia. Snelkoppelingen verschijnen als je vaker op een site komt.</div>
+    <div class="hint">Jouw eigen browser, op jouw eigen Pi.<br>Nieuwsearch zoekt in je eigen index en in Wikipedia. De Tv-knop hierboven opent de echte Chromium op de Pi: daar werkt alles, ook video.</div>
   </div>
 </div>
 
@@ -375,6 +386,11 @@ function openDirect() {
   else toast('Open eerst een pagina.');
 }
 
+function echteModus() {
+  var u = 'http://' + location.hostname + ':6080/vnc.html?autoconnect=true&resize=scale';
+  window.open(u, '_blank');
+}
+
 function laadbalk() { document.getElementById('loader').style.width = '70%'; }
 function klaar() {
   var l = document.getElementById('loader');
@@ -515,6 +531,7 @@ function menu() {
     '<button class="sub' + (mode === 'volledig' ? ' blauw' : '') + '" onclick="setMode(&quot;volledig&quot;)">Volledig (JavaScript aan)</button>' +
     '<button class="sub' + (mode === 'veilig' ? ' blauw' : '') + '" onclick="setMode(&quot;veilig&quot;)">Veilig (zonder JavaScript)</button>' +
     '<div class="keuze">Advertentieblokkering: aan (ingebouwd)</div>' +
+    '<div class="keuze">Tv-knop = echte Chromium op de Pi: voor video, inloggen en lastige sites</div>' +
     '<div class="keuze">Sneltoetsen: Ctrl+L adres, Ctrl+T nieuw tabblad, Ctrl+W sluiten, Ctrl+D bladwijzer</div>';
   if (token) { laadBladwijzers(p, kop); } else { laadLogin(p, kop); }
 }
@@ -732,7 +749,7 @@ def koekjes_opslaan(host, headers):
 
 
 def haal_bron(url, method="GET", body=None, content_type=None,
-              limiet=MAX_PAGE, timeout=25):
+              limiet=MAX_PAGE, timeout=25, extra_headers=None):
     """Ruwe bytes van een bron ophalen (gzip, cookies, ook foutpagina's)."""
     host = urllib.parse.urlsplit(url).hostname or ""
     headers = {
@@ -746,6 +763,8 @@ def haal_bron(url, method="GET", body=None, content_type=None,
         headers["Cookie"] = koek
     if body is not None:
         headers["Content-Type"] = content_type or "application/x-www-form-urlencoded"
+    if extra_headers:
+        headers.update(extra_headers)
     req = urllib.request.Request(url, data=body, method=method, headers=headers)
     try:
         resp = urllib.request.urlopen(req, timeout=timeout)
@@ -763,10 +782,16 @@ def haal_bron(url, method="GET", body=None, content_type=None,
                 raw = gzip.decompress(raw)
             except OSError:
                 pass
+        rheaders = {}
+        try:
+            for k, v in resp.headers.items():
+                rheaders[k] = v
+        except Exception:
+            pass
         koekjes_opslaan(urllib.parse.urlsplit(final_url).hostname or host, resp.headers)
     finally:
         resp.close()
-    return raw, final_url, ctype, int(status)
+    return raw, final_url, ctype, int(status), rheaders
 
 
 def als_tekst(raw, ctype):
@@ -780,7 +805,7 @@ def als_tekst(raw, ctype):
 
 def haal_pagina(url, limiet=MAX_PAGE, timeout=20):
     """Tekstversie van een bron (voor zoeken en AI-context)."""
-    raw, final_url, ctype, status = haal_bron(url, limiet=limiet, timeout=timeout)
+    raw, final_url, ctype, status, _ = haal_bron(url, limiet=limiet, timeout=timeout)
     return als_tekst(raw, ctype), final_url, ctype, status
 
 
@@ -818,22 +843,23 @@ LEEG_BANNER_TEMPLATE = (
     'padding:16px;border-bottom:1px solid #fcd9a8;font-size:14px">'
     'Deze site draait vrijwel volledig op JavaScript. '
     '<a style="color:#b45309;font-weight:600" href="/browse?url={url}&amp;mode=volledig">'
-    'Openen in volledige modus</a> werkt meestal wel.</div>')
+    'Openen in volledige modus</a> werkt meestal wel, '
+    'of gebruik de Tv-knop voor de echte browser.</div>')
 
 FOUT_BANNER_TEMPLATE = (
     '<div style="font-family:system-ui,sans-serif;background:#fef2f2;color:#991b1b;'
     'padding:16px;border-bottom:1px solid #fecaca;font-size:14px">'
     'De site gaf een HTTP-{status}-foutmelding; hieronder zie je de foutpagina van de site zelf. '
     '<a style="color:#b91c1c;font-weight:600" href="/browse?url={url}&amp;mode=volledig">'
-    'Opnieuw in volledige modus</a></div>')
+    'Opnieuw in volledige modus</a> of gebruik de Tv-knop voor de echte browser.</div>')
 
 FOUT_PAGINA = (
     "<div style='font-family:system-ui,sans-serif;max-width:620px;margin:60px auto;padding:0 20px'>"
     "<h2 style='margin-bottom:4px'>Deze pagina kon niet worden geladen</h2>"
     "<p style='color:#777;font-size:14px'>__MELDING__</p>"
-    "<p style='font-size:14px'>Sommige sites (zoals Microsoft) blokkeren weergave "
-    "in een omlijst kader of beschermen zich tegen servers die pagina's ophalen. "
-    "Je kunt de pagina ook buiten Newly openen:</p>"
+    "<p style='font-size:14px'>Sommige sites blokkeren weergave in een omlijst kader of "
+    "beschermen zich tegen servers die pagina's ophalen. "
+    "Gebruik de Tv-knop hierboven: de echte browser op de Pi kan vrijwel alles.</p>"
     "<p><a href='__URL__' target='_blank' rel='noopener'>Openen buiten Newly</a> &nbsp;|&nbsp; "
     "<a href='/browse?url=__URL_Q__&amp;mode=veilig'>Opnieuw in veilige modus</a></p>"
     "<p style='margin-top:40px'><a href='/'>Terug naar Newly</a></p></div>")
@@ -866,11 +892,24 @@ def proxificeer(v, base, mode, route="/browse"):
 
 
 def bewerk_urls(text, base, mode):
-    """src-, href-, poster- en data-src-kenmerken via de Pi laten lopen."""
+    """src-, href-, poster- en data-src-kenmerken via de Pi laten lopen.
+
+    Anker-links (href="#...") zijn apart: met een <base>-tag herladen die
+    anders de hele pagina of navigeren ze naar het geblokkeerde echte adres.
+    """
     def vervang(m):
         attr, quote, v = m.group(1), m.group(2), m.group(3).strip()
-        if not v or v.startswith(("#", "mailto:", "tel:", "javascript:", "data:",
-                                  "blob:", "about:", "sms:")):
+        if not v:
+            return m.group(0)
+        if v.startswith("#"):
+            if attr != "href":
+                return m.group(0)
+            if len(v) > 1:
+                return ("href=" + quote + "/browse?url="
+                        + urllib.parse.quote(base, safe="") + v + quote)
+            return "href=" + quote + "javascript:void(0)" + quote
+        if v.startswith(("mailto:", "tel:", "javascript:", "data:",
+                         "blob:", "about:", "sms:")):
             return m.group(0)
         prox = proxificeer(v, base, mode)
         if prox:
@@ -945,8 +984,9 @@ def herschrijf_css(text, css_url):
     return text
 
 
-# Scriptje dat in elke pagina wordt gezet: fetch/XHR van de site gaan
-# ook via de Pi, zodat api-calls geen CORS- of oorsprongblokkades meer kennen.
+# Scriptje dat in elke pagina wordt gezet: fetch/XHR van de site gaan ook
+# via de Pi (geen CORS- of oorsprongblokkades) en de paginageschiedenis van
+# JavaScript-sites (pushState) wordt opgevangen zodat links gewoon werken.
 SHIM_TEMPLATE = (
     "<script>"
     "(function(){"
@@ -975,6 +1015,7 @@ SHIM_TEMPLATE = (
     "try{u=p(u);}catch(e){}"
     "return oo.apply(this,[m,u].concat(rest));"
     "};"
+    "try{history.pushState=function(){};history.replaceState=function(){};}catch(e){}"
     "})();"
     "</script>")
 
@@ -1001,6 +1042,9 @@ def bewerk_html(text, final_url, mode, status):
     text = re.sub(r"(?is)\s+integrity\s*=\s*([\"']).*?\1", "", text)
 
     inject = '<base href="' + html.escape(base) + '">'
+    if not re.search(r"(?is)<meta[^>]+name=[\"']viewport[\"']", text):
+        inject = inject + ('<meta name="viewport" '
+                            'content="width=device-width, initial-scale=1">')
     if mode == "volledig":
         inject = inject + SHIM_TEMPLATE.replace("__BASE__", json.dumps(base))
     if re.search(r"(?is)<head[^>]*>", text):
@@ -1176,7 +1220,7 @@ def ai_vraag(prompt, page_url):
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "ZelfSync/0.7"
+    server_version = "ZelfSync/0.8"
 
     # ---------- helpers ----------
     def send_json(self, code, obj):
@@ -1219,7 +1263,7 @@ class Handler(BaseHTTPRequestHandler):
                            (token,)).fetchone()
 
     def dien_pagina(self, target, mode, method="GET", body=None, content_type=None):
-        """Elk bronbestand via de Pi serveren (html, css, js, beeld, json)."""
+        """Elk bronbestand via de Pi serveren (html, css, js, beeld, json, video)."""
         host = urllib.parse.urlsplit(target).hostname or ""
         if method == "GET" and is_ad_host(host):
             self.send_response(204)
@@ -1227,9 +1271,13 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Content-Length", "0")
             self.end_headers()
             return
+        # Videospelers vragen om stukjes (Range); die geven we 1-op-1 door
+        range_header = self.headers.get("Range")
         try:
-            raw, final_url, ctype, status = haal_bron(
-                target, method=method, body=body, content_type=content_type)
+            raw, final_url, ctype, status, rheaders = haal_bron(
+                target, method=method, body=body, content_type=content_type,
+                limiet=64 * 1024 * 1024 if range_header else MAX_PAGE,
+                extra_headers={"Range": range_header} if range_header else None)
         except Exception as exc:
             self.send_html(502, FOUT_PAGINA.replace("__MELDING__", html.escape(str(exc)))
                            .replace("__URL__", html.escape(target, quote=True))
@@ -1237,6 +1285,18 @@ class Handler(BaseHTTPRequestHandler):
                            csp="script-src 'none'")
             return
         ct = (ctype or "").lower()
+        if range_header and status in (200, 206) and not ("html" in ct or "text/css" in ct):
+            self.send_response(status)
+            self.send_header("Content-Type", ctype)
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Cache-Control", "max-age=3600")
+            if "Content-Range" in rheaders:
+                self.send_header("Content-Range", rheaders["Content-Range"])
+            self.send_header("Accept-Ranges", "bytes")
+            self.send_header("Content-Length", str(len(raw)))
+            self.end_headers()
+            self.wfile.write(raw)
+            return
         csp = None
         cache = "max-age=3600"
         if "text/css" in ct:
@@ -1357,7 +1417,7 @@ class Handler(BaseHTTPRequestHandler):
         con = connect()
         try:
             if self.path == "/health":
-                self.send_json(200, {"status": "ok", "server": "zelfsync", "version": "0.7"})
+                self.send_json(200, {"status": "ok", "server": "zelfsync", "version": "0.8"})
                 return
             user = self.auth_user(con)
             if not user:
@@ -1507,7 +1567,7 @@ def main():
     print("ZelfSync + Newly browser-in-browser draait op poort %d" % PORT)
     print("Open in een browser op hetzelfde netwerk: http://<pi-adres>:%d/" % PORT)
     print("Nieuwsearch zoekt in je eigen index, Wikipedia (nl) en raadt webadressen.")
-    print("Volledige proxy aan: alle bronnen en advertentieblokkering lopen via de Pi.")
+    print("Volledige proxy + advertentieblokkering aan. Tv-knop opent de echte Chromium (poort 6080).")
     try:
         ThreadingHTTPServer(("0.0.0.0", PORT), Handler).serve_forever()
     except KeyboardInterrupt:
