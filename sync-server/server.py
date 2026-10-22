@@ -129,12 +129,12 @@ var huidig = '';
 var stack = [];
 
 var TEGELS = [
-  ['Wikipedia', '\uD83D\uDCDA', 'https://nl.wikipedia.org'],
-  ['NU.nl', '\uD83D\uDCF0', 'https://www.nu.nl'],
-  ['NOS', '\uD83D\uDCF1', 'https://nos.nl'],
-  ['Bright', '\uD83D\uDCA1', 'https://www.bright.nl'],
-  ['Startpagina', '\uD83D\uDD0D', 'https://www.startpagina.nl'],
-  ['Tweakers', '\uD83D\uDCBB', 'https://tweakers.net']
+  ['Wikipedia', '\U0001F4DA', 'https://nl.wikipedia.org'],
+  ['NU.nl', '\U0001F4F0', 'https://www.nu.nl'],
+  ['NOS', '\U0001F4F1', 'https://nos.nl'],
+  ['Bright', '\U0001F4A1', 'https://www.bright.nl'],
+  ['Startpagina', '\U0001F50D', 'https://www.startpagina.nl'],
+  ['Tweakers', '\U0001F4BB', 'https://tweakers.net']
 ];
 
 (function bouwTegels() {
@@ -232,8 +232,8 @@ function laadLogin(p) {
   p.innerHTML = '<h3>Inloggen of registreren</h3>' +
     '<input id="u" placeholder="Gebruikersnaam">' +
     '<input id="p" type="password" placeholder="Wachtwoord (min. 8 tekens)">' +
-    '<button class="sub blauw" onclick="stuur(\'register\')">Account maken</button>' +
-    '<button class="sub" onclick="stuur(\'login\')">Inloggen</button>';
+    '<button class="sub blauw" onclick="stuur(&quot;register&quot;)">Account maken</button>' +
+    '<button class="sub" onclick="stuur(&quot;login&quot;)">Inloggen</button>';
 }
 
 function laadBladwijzers(p) {
@@ -245,7 +245,7 @@ function laadBladwijzers(p) {
       var lijst = document.getElementById('lijst');
       lijst.innerHTML = '';
       var items = d.bookmarks || [];
-      if (!items.length) { lijst.innerHTML = '<div style="color:#8b97a6;font-size:13px">Nog geen bladwijzers. Gebruik de &#9733; op een pagina.</div>'; return; }
+      if (!items.length) { lijst.innerHTML = '<div style="color:#8b97a6;font-size:13px">Nog geen bladwijzers. Gebruik de ster op een pagina.</div>'; return; }
       items.forEach(function (b) {
         var a = document.createElement('a');
         a.href = '#';
@@ -401,7 +401,7 @@ def proxy_page(target):
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "ZelfSync/0.3"
+    server_version = "ZelfSync/0.4"
 
     # ---------- helpers ----------
     def send_json(self, code, obj):
@@ -414,7 +414,7 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(data)
 
     def send_html(self, code, body, csp=None):
-        data = body.encode("utf-8")
+        data = body.encode("utf-8", "replace")
         self.send_response(code)
         self.send_header("Content-Type", "text/html; charset=utf-8")
         self.send_header("Content-Length", str(len(data)))
@@ -453,7 +453,6 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.path == "/" or self.path.startswith("/?"):
-            # Geen strikte CSP hier: de UI heeft eigen (inline) script nodig.
             self.send_html(200, INDEX_HTML)
             return
         if self.path.startswith("/browse"):
@@ -480,7 +479,7 @@ class Handler(BaseHTTPRequestHandler):
         con = connect()
         try:
             if self.path == "/health":
-                self.send_json(200, {"status": "ok", "server": "zelfsync", "version": "0.3"})
+                self.send_json(200, {"status": "ok", "server": "zelfsync", "version": "0.4"})
                 return
             user = self.auth_user(con)
             if not user:
