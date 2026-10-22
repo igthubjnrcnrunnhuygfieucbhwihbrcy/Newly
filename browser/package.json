@@ -1,0 +1,13 @@
+{
+  "name": "newly-browser",
+  "version": "0.1.0",
+  "description": "Newly - eigen Chromium-browser met AI-agent",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0"
+  }
+}

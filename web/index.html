@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Newly — webversie (stub)</title>
+<style>
+  body { font: 15px system-ui, sans-serif; max-width: 640px; margin: 60px auto; padding: 0 20px; color: #222; }
+  input, textarea { width: 100%; box-sizing: border-box; padding: 10px; border-radius: 6px; border: 1px solid #ccc; }
+  button { margin-top: 8px; padding: 10px 18px; border: 0; border-radius: 6px; background: #1a56db; color: #fff; cursor: pointer; }
+  .antwoord { margin-top: 20px; padding: 14px; background: #f4f6f8; border-radius: 8px; white-space: pre-wrap; }
+  .hint { color: #777; font-size: 13px; }
+</style>
+</head>
+<body>
+  <h1>Newly — browser-in-browser (fase 5)</h1>
+  <p class="hint">Stub. De webversie praat straks met de LLM-gateway en de server-side
+  tekstproxy op de sync-server (willekeurige sites iframen blokkeert X-Frame-Options,
+  dus pagina's worden via de proxy gerenderd).</p>
+
+  <h3>AI-assistent (gateway draait op http://localhost:8766)</h3>
+  <textarea id="prompt" rows="3" placeholder="Bijv: leg uit wat agent-MCP is"></textarea>
+  <button onclick="vraag()">Vraag</button>
+  <div class="antwoord" id="antwoord"></div>
+
+  <script>
+    async function vraag() {
+      const antwoord = document.getElementById('antwoord');
+      antwoord.textContent = 'Denkt na...';
+      try {
+        const res = await fetch('http://localhost:8766/ask', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt: document.getElementById('prompt').value })
+        });
+        const data = await res.json();
+        antwoord.textContent = data.answer || data.error || JSON.stringify(data);
+      } catch (err) {
+        antwoord.textContent = 'Gateway niet bereikbaar: ' + err;
+      }
+    }
+  </script>
+</body>
+</html>

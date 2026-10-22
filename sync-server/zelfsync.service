@@ -1,0 +1,15 @@
+[Unit]
+Description=ZelfSync (Newly sync-server op Raspberry Pi)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=pi
+WorkingDirectory=/home/pi/zelfsync
+ExecStart=/usr/bin/python3 /home/pi/zelfsync/server.py
+Restart=on-failure
+RestartSec=5
+Environment=ZELFSYNC_PORT=8765
+
+[Install]
+WantedBy=multi-user.target
