@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 """ZelfSync + browser-in-browser voor Newly (Raspberry Pi 5).
 
-EEN dienst, twee taken:
-1. Sync-server: multi-user accounts, bookmarks, geschiedenis (SQLite).
-2. Browser-in-browser: open http://pi-adres:8765/ in een gewone browser
-   en je krijgt een moderne startpagina met adresbalk; pagina's worden
-   door de Pi opgehaald en veilig (zonder JavaScript) getoond.
+Taken:
+1. Sync-server: accounts, bookmarks, geschiedenis (SQLite).
+2. Browser-in-browser op http://pi-adres:8765/ :
+   - Volledige modus: pagina's met JavaScript, veilig gezandbakt (iframe-sandbox)
+   - Veilige modus: pagina's zonder JavaScript (tekstfirst, snel)
+   - Zoeken: echte zoekresultaten via DuckDuckGo, opgehaald door jouw Pi
+   - AI: vraagt een LLM (Mistral) met jouw eigen API-sleutel, opgeslagen op de Pi
+3. Tegels op de startpagina verschijnen op basis van wat je vaak bezoekt.
 
 Start:      python3 server.py      (poort 8765, of ZELFSYNC_PORT=...)
 Service:    zie install-pi.sh (systemd)
@@ -25,72 +28,89 @@ from pathlib import Path
 
 DB_PATH = Path(__file__).resolve().parent / "data" / "zelfsync.db"
 DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+KEY_PATH = DB_PATH.parent / "apikey.txt"
 MAX_BODY = 1_000_000
 MAX_PAGE = 6 * 1024 * 1024
 PORT = int(os.environ.get("ZELFSYNC_PORT", "8765"))
+LLM_MODEL = os.environ.get("LLM_MODEL", "mistral-small-latest")
 
 INDEX_HTML = """<!DOCTYPE html>
 <html lang="nl">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#0f141a">
 <title>Newly</title>
 <style>
+ :root { --bg:#0f141a; --tekst:#e8ecf2; --balk:rgba(15,20,26,.94); --rand:#232b36;
+   --vlak:#161d27; --vlak2:#1c2430; --invoer:#1c2430; --subtekst:#aab6c5; --accent:#3b74ff;
+   --schaduw:rgba(0,0,0,.45); }
+ body.licht { --bg:#eef2f7; --tekst:#1c2430; --balk:rgba(255,255,255,.94); --rand:#dce3ec;
+   --vlak:#ffffff; --vlak2:#f2f5f9; --invoer:#f2f5f9; --subtekst:#5a6a7e; --accent:#2f63e8;
+   --schaduw:rgba(30,50,80,.18); }
  * { box-sizing: border-box; }
  body { margin: 0; font-family: -apple-system, 'Segoe UI', Roboto, system-ui, sans-serif;
-        background: #0f141a; color: #e8ecf2; }
+   background: var(--bg); color: var(--tekst); }
  header { position: sticky; top: 0; z-index: 10; display: flex; gap: 6px; align-items: center;
-   padding: 10px 12px; background: rgba(15,20,26,.94); backdrop-filter: blur(12px);
-   border-bottom: 1px solid #232b36; }
+   padding: 10px 12px; background: var(--balk); backdrop-filter: blur(12px);
+   border-bottom: 1px solid var(--rand); }
  .iconbtn { width: 40px; height: 40px; border-radius: 50%; border: 0; background: transparent;
-   color: #c6cfdb; font-size: 18px; cursor: pointer; display: flex; align-items: center;
+   color: var(--tekst); font-size: 18px; cursor: pointer; display: flex; align-items: center;
    justify-content: center; flex: none; }
- .iconbtn:hover { background: #202834; }
- .addr { flex: 1; display: flex; align-items: center; background: #1c2430;
-   border: 1px solid #2a3442; border-radius: 999px; padding: 0 14px; min-width: 0; }
- .addr input { flex: 1; background: transparent; border: 0; outline: none; color: #e8ecf2;
+ .iconbtn:hover { background: var(--vlak2); }
+ .addr { flex: 1; display: flex; align-items: center; background: var(--invoer);
+   border: 1px solid var(--rand); border-radius: 999px; padding: 0 14px; min-width: 0; }
+ .addr input { flex: 1; background: transparent; border: 0; outline: none; color: var(--tekst);
    font-size: 15px; padding: 10px 0; min-width: 0; }
- .addr .lock { color: #5f7a9d; font-size: 11px; margin-right: 8px; flex: none; }
- #loader { height: 2px; background: #3b74ff; width: 0%; transition: width .4s; }
+ .addr .lock { color: var(--subtekst); font-size: 11px; margin-right: 8px; flex: none; }
+ #loader { height: 2px; background: var(--accent); width: 0%; transition: width .4s; }
  #content { position: relative; height: calc(100vh - 64px); }
  #start { position: absolute; inset: 0; overflow: auto; display: flex; flex-direction: column;
-   align-items: center; padding: 64px 20px 30px; }
+   align-items: center; padding: 56px 20px 30px; }
  .logo { font-size: 34px; font-weight: 800; letter-spacing: -.5px; }
- .logo b { color: #3b74ff; font-weight: 800; }
- .zoek { display: flex; width: 100%; max-width: 560px; margin: 24px 0 42px; background: #1c2430;
-   border: 1px solid #2a3442; border-radius: 999px; padding: 4px; }
- .zoek input { flex: 1; background: transparent; border: 0; outline: none; color: #e8ecf2;
+ .logo b { color: var(--accent); font-weight: 800; }
+ .zoek { display: flex; width: 100%; max-width: 580px; margin: 22px 0 34px; background: var(--vlak);
+   border: 1px solid var(--rand); border-radius: 999px; padding: 4px;
+   box-shadow: 0 2px 14px var(--schaduw); }
+ .zoek input { flex: 1; background: transparent; border: 0; outline: none; color: var(--tekst);
    font-size: 16px; padding: 12px 20px; min-width: 0; }
- .zoek button { background: #3b74ff; border: 0; border-radius: 999px; color: #fff;
-   padding: 12px 22px; font-size: 15px; font-weight: 600; cursor: pointer; flex: none; }
- .zoek button:hover { background: #2f63e8; }
+ .zoek button { background: var(--accent); border: 0; border-radius: 999px; color: #fff;
+   padding: 12px 24px; font-size: 15px; font-weight: 600; cursor: pointer; flex: none; }
+ .zoek button:hover { filter: brightness(1.1); }
+ #results { display: none; width: 100%; max-width: 640px; text-align: left; }
+ #results h2 { font-size: 15px; font-weight: 600; color: var(--subtekst); margin: 0 0 10px; }
+ .res { padding: 12px 4px; border-bottom: 1px solid var(--rand); }
+ .res a { color: var(--tekst); font-size: 16px; font-weight: 500; text-decoration: none; }
+ .res a:hover { color: var(--accent); }
+ .res .url { color: var(--accent); font-size: 12px; margin: 2px 0; word-break: break-all; }
+ .res .snip { color: var(--subtekst); font-size: 13px; line-height: 1.45; }
  .tegels { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
    gap: 14px; width: 100%; max-width: 560px; }
- .tegel { background: #161d27; border: 1px solid #232b36; border-radius: 16px;
-   padding: 18px 10px; text-align: center; cursor: pointer; transition: .15s; }
- .tegel:hover { background: #1d2530; transform: translateY(-2px); border-color: #2f3b4c; }
- .tegel .em { font-size: 26px; display: block; margin-bottom: 8px; }
- .tegel .nm { font-size: 13px; color: #aab6c5; }
+ .tegel { background: var(--vlak); border: 1px solid var(--rand); border-radius: 16px;
+   padding: 16px 10px; text-align: center; cursor: pointer; transition: .15s; }
+ .tegel:hover { transform: translateY(-2px); border-color: var(--accent); }
+ .tegel img { width: 30px; height: 30px; border-radius: 8px; margin-bottom: 8px; }
+ .tegel .nm { font-size: 13px; color: var(--subtekst); word-break: break-all; }
  iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0;
    background: #fff; display: none; }
- #panel { position: fixed; top: 64px; right: 12px; width: min(92vw, 340px);
-   background: #161d27; border: 1px solid #2a3442; border-radius: 16px; padding: 18px;
-   display: none; z-index: 20; box-shadow: 0 12px 34px rgba(0,0,0,.45); }
- #panel h3 { margin: 0 0 12px; font-size: 15px; }
- #panel input { width: 100%; background: #1c2430; border: 1px solid #2a3442;
-   border-radius: 10px; color: #e8ecf2; padding: 11px; margin-bottom: 8px; outline: none;
-   font-size: 14px; }
- .sub { background: #202834; color: #dbe4ef; border: 0; border-radius: 10px;
-   padding: 11px 16px; cursor: pointer; font-size: 14px; margin-right: 6px; }
- .sub.blauw { background: #3b74ff; color: #fff; }
- #panel a { color: #9ec1ff; display: block; padding: 7px 0; font-size: 14px;
-   text-decoration: none; border-bottom: 1px solid #232b36; }
- #panel a:hover { color: #c2d8ff; }
+ #panel, #ai { position: fixed; top: 64px; right: 12px; width: min(92vw, 350px);
+   background: var(--vlak); border: 1px solid var(--rand); border-radius: 16px; padding: 18px;
+   display: none; z-index: 20; box-shadow: 0 12px 34px var(--schaduw); }
+ #panel h3, #ai h3 { margin: 0 0 12px; font-size: 15px; }
+ #panel input, #ai input, #ai textarea { width: 100%; background: var(--invoer);
+   border: 1px solid var(--rand); border-radius: 10px; color: var(--tekst); padding: 11px;
+   margin-bottom: 8px; outline: none; font-size: 14px; font-family: inherit; }
+ .sub { background: var(--vlak2); color: var(--tekst); border: 1px solid var(--rand);
+   border-radius: 10px; padding: 10px 14px; cursor: pointer; font-size: 13px; margin: 4px 4px 8px 0; }
+ .sub.blauw { background: var(--accent); color: #fff; border-color: transparent; }
+ #panel a { color: var(--accent); display: block; padding: 7px 0; font-size: 14px;
+   text-decoration: none; border-bottom: 1px solid var(--rand); word-break: break-all; }
+ .keuze { font-size: 13px; color: var(--subtekst); margin: 10px 0 4px; }
+ #antwoord { font-size: 14px; line-height: 1.5; white-space: pre-wrap; color: var(--tekst); }
  #toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
-   background: #233043; color: #dbe4ef; padding: 11px 20px; border-radius: 999px;
-   font-size: 13px; display: none; z-index: 30; box-shadow: 0 6px 20px rgba(0,0,0,.35); }
- .hint { font-size: 12px; color: #5c6875; margin-top: 46px; text-align: center; max-width: 420px; }
+   background: var(--vlak); border:1px solid var(--rand); color: var(--tekst); padding: 11px 20px;
+   border-radius: 999px; font-size: 13px; display: none; z-index: 30; box-shadow: 0 6px 20px var(--schaduw); }
+ .hint { font-size: 12px; color: var(--subtekst); margin-top: 34px; text-align: center;
+   max-width: 440px; }
 </style>
 </head>
 <body>
@@ -98,11 +118,13 @@ INDEX_HTML = """<!DOCTYPE html>
   <button class="iconbtn" onclick="terug()" title="Terug">&#8592;</button>
   <button class="iconbtn" onclick="ververs()" title="Verversen">&#8635;</button>
   <form class="addr" onsubmit="return ga()">
-    <span class="lock">&#128274;</span>
+    <span class="lock">&#128269;</span>
     <input id="url" placeholder="Zoek of typ een webadres" autocomplete="off" spellcheck="false">
   </form>
-  <button class="iconbtn" onclick="sla()" title="Bladwijzer maken">&#9733;</button>
-  <button class="iconbtn" onclick="menu()" title="Account en bladwijzers">&#9787;</button>
+  <button class="iconbtn" onclick="sla()" title="Bladwijzer">&#9733;</button>
+  <button class="iconbtn" onclick="aiPanel()" title="AI-assistent">&#129302;</button>
+  <button class="iconbtn" onclick="thema()" title="Licht/donker">&#9788;</button>
+  <button class="iconbtn" onclick="menu()" title="Menu">&#9776;</button>
 </header>
 <div id="loader"></div>
 
@@ -110,59 +132,146 @@ INDEX_HTML = """<!DOCTYPE html>
   <div id="start">
     <div class="logo">New<b>l</b>y</div>
     <form class="zoek" onsubmit="return ga()">
-      <input id="url2" placeholder="Zoek of typ een webadres" autocomplete="off" spellcheck="false">
+      <input id="url2" placeholder="Zoek op het web of typ een adres" autocomplete="off" spellcheck="false">
       <button type="submit">Ga</button>
     </form>
+    <div id="results"></div>
     <div class="tegels" id="tegels"></div>
-    <div class="hint">Jouw eigen browser-in-browser op de Pi. Pagina's worden veilig opgehaald;
-      JavaScript wordt niet uitgevoerd.</div>
+    <div class="hint">Jouw eigen browser op de Pi. Tegels verschijnen op basis van wat je vaak bezoekt.</div>
   </div>
   <iframe id="frame"></iframe>
 </div>
 
 <div id="panel"></div>
+<div id="ai"></div>
 <div id="toast"></div>
 
 <script>
 var token = localStorage.getItem('zelfsync_token') || '';
 var huidig = '';
 var stack = [];
+var mode = localStorage.getItem('nieuwly_mode') || 'volledig';
+var themaStand = localStorage.getItem('nieuwly_thema') || (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'licht' : 'donker');
 
-var TEGELS = [
-  ['Wikipedia', '\U0001F4DA', 'https://nl.wikipedia.org'],
-  ['NU.nl', '\U0001F4F0', 'https://www.nu.nl'],
-  ['NOS', '\U0001F4F1', 'https://nos.nl'],
-  ['Bright', '\U0001F4A1', 'https://www.bright.nl'],
-  ['Startpagina', '\U0001F50D', 'https://www.startpagina.nl'],
-  ['Tweakers', '\U0001F4BB', 'https://tweakers.net']
-];
+function zetThema() {
+  document.body.className = (themaStand === 'licht') ? 'licht' : '';
+  localStorage.setItem('nieuwly_thema', themaStand);
+}
+function thema() {
+  themaStand = (themaStand === 'licht') ? 'donker' : 'licht';
+  zetThema();
+}
+zetThema();
 
-(function bouwTegels() {
+function isUrl(v) {
+  if (/^https?:\\/\\//i.test(v)) return true;
+  if (/^about:/i.test(v)) return true;
+  if (/\\s/.test(v)) return false;
+  return /^[a-z0-9-]+(\\.[a-z0-9-]+)+(:\\d+)?([\\/?#].*)?$/i.test(v);
+}
+
+function laadTegels() {
   var w = document.getElementById('tegels');
-  TEGELS.forEach(function (t) {
-    var d = document.createElement('div');
-    d.className = 'tegel';
-    var em = document.createElement('span');
-    em.className = 'em';
-    em.textContent = t[1];
-    var nm = document.createElement('span');
-    nm.className = 'nm';
-    nm.textContent = t[0];
-    d.appendChild(em); d.appendChild(nm);
-    d.onclick = function () { openB(t[2]); };
-    w.appendChild(d);
-  });
-})();
+  w.innerHTML = '';
+  if (!token) {
+    var d1 = document.createElement('div');
+    d1.className = 'hint';
+    d1.textContent = 'Tegels met je favoriete sites verschijnen hier als je ingelogd bent en vaker surft.';
+    w.appendChild(d1);
+    return;
+  }
+  fetch('/history?limit=200', { headers: { 'Authorization': 'Bearer ' + token } })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      var telling = {};
+      (d.history || []).forEach(function (h) {
+        try { var dom = new URL(h.url).hostname.replace(/^www\\./, ''); if (dom) telling[dom] = (telling[dom] || 0) + 1; } catch (e) {}
+      });
+      var top = Object.keys(telling).sort(function (a, b) { return telling[b] - telling[a]; }).slice(0, 6);
+      if (!top.length) {
+        var d2 = document.createElement('div');
+        d2.className = 'hint';
+        d2.textContent = 'Bezoek sites en de sites waar je vaak komt verschijnen hier vanzelf.';
+        w.appendChild(d2);
+        return;
+      }
+      top.forEach(function (dom) {
+        var t = document.createElement('div');
+        t.className = 'tegel';
+        var img = document.createElement('img');
+        img.src = 'https://icons.duckduckgo.com/ip3/' + dom + '.ico';
+        var nm = document.createElement('div');
+        nm.className = 'nm';
+        nm.textContent = dom;
+        t.appendChild(img); t.appendChild(nm);
+        t.onclick = function () { openB('https://' + dom); };
+        w.appendChild(t);
+      });
+    });
+}
+
+function toonResultaten(q) {
+  var r = document.getElementById('results');
+  document.getElementById('tegels').style.display = 'none';
+  document.getElementById('start').style.display = 'flex';
+  document.getElementById('frame').style.display = 'none';
+  r.style.display = 'block';
+  r.innerHTML = '';
+  var h = document.createElement('h2');
+  h.textContent = 'Zoekresultaten voor ' + q;
+  r.appendChild(h);
+  var l = document.getElementById('loader');
+  l.style.width = '70%';
+  fetch('/search?q=' + encodeURIComponent(q))
+    .then(function (res) { return res.json(); })
+    .then(function (d) {
+      l.style.width = '100%';
+      setTimeout(function () { l.style.width = '0%'; }, 350);
+      var items = d.results || [];
+      if (d.error || !items.length) {
+        var e = document.createElement('div');
+        e.className = 'hint';
+        e.textContent = d.error || 'Geen resultaten gevonden.';
+        r.appendChild(e);
+        return;
+      }
+      items.forEach(function (it) {
+        var box = document.createElement('div');
+        box.className = 'res';
+        var a = document.createElement('a');
+        a.href = '#';
+        a.textContent = it.title || it.url;
+        a.onclick = function () { openB(it.url); return false; };
+        var u = document.createElement('div');
+        u.className = 'url';
+        u.textContent = it.url;
+        var s = document.createElement('div');
+        s.className = 'snip';
+        s.textContent = it.snippet || '';
+        box.appendChild(a); box.appendChild(u);
+        if (it.snippet) box.appendChild(s);
+        r.appendChild(box);
+      });
+    })
+    .catch(function () { l.style.width = '0%'; });
+}
 
 function laad(v) {
   if (v.indexOf('http') !== 0) v = 'https://' + v;
   huidig = v;
+  document.getElementById('results').style.display = 'none';
+  document.getElementById('tegels').style.display = 'grid';
   document.getElementById('url').value = v;
   document.getElementById('url2').value = v;
   document.getElementById('start').style.display = 'none';
   var f = document.getElementById('frame');
+  if (mode === 'volledig') {
+    f.setAttribute('sandbox', 'allow-scripts allow-forms allow-popups allow-downloads');
+  } else {
+    f.setAttribute('sandbox', 'allow-same-origin allow-forms');
+  }
   f.style.display = 'block';
-  f.src = '/browse?url=' + encodeURIComponent(v);
+  f.src = '/browse?url=' + encodeURIComponent(v) + '&mode=' + encodeURIComponent(mode);
   var l = document.getElementById('loader');
   l.style.width = '70%';
   if (token) {
@@ -177,6 +286,7 @@ function ga() {
     ? document.getElementById('url2').value.trim()
     : document.getElementById('url').value.trim();
   if (!v) return false;
+  if (!isUrl(v)) { toonResultaten(v); return false; }
   if (huidig && stack[stack.length - 1] !== huidig) stack.push(huidig);
   laad(v);
   return false;
@@ -188,6 +298,7 @@ function openB(u) {
 }
 
 function terug() {
+  if (document.getElementById('results').style.display === 'block') { naarStart(); return; }
   if (!stack.length) { naarStart(); return; }
   laad(stack.pop());
 }
@@ -197,6 +308,9 @@ function ververs() { if (huidig) laad(huidig); }
 function naarStart() {
   document.getElementById('frame').style.display = 'none';
   document.getElementById('start').style.display = 'flex';
+  document.getElementById('results').style.display = 'none';
+  document.getElementById('tegels').style.display = 'grid';
+  laadTegels();
   document.getElementById('url').value = '';
   document.getElementById('url2').value = '';
   huidig = '';
@@ -221,37 +335,71 @@ function toast(t) {
   el._t = setTimeout(function () { el.style.display = 'none'; }, 2600);
 }
 
-function menu() {
-  var p = document.getElementById('panel');
-  if (p.style.display === 'block') { p.style.display = 'none'; return; }
-  p.style.display = 'block';
-  if (token) { laadBladwijzers(p); } else { laadLogin(p); }
+function sluitPanelen() {
+  document.getElementById('panel').style.display = 'none';
+  document.getElementById('ai').style.display = 'none';
 }
 
-function laadLogin(p) {
-  p.innerHTML = '<h3>Inloggen of registreren</h3>' +
+function menu() {
+  var p = document.getElementById('panel');
+  var ai = document.getElementById('ai');
+  ai.style.display = 'none';
+  if (p.style.display === 'block') { p.style.display = 'none'; return; }
+  p.style.display = 'block';
+  var kop = '<h3>Menu</h3>' +
+    '<div class="keuze">Weergave</div>' +
+    '<button class="sub' + (mode === 'volledig' ? ' blauw' : '') + '" onclick="setMode(&quot;volledig&quot;)">Volledig (JavaScript aan)</button>' +
+    '<button class="sub' + (mode === 'veilig' ? ' blauw' : '') + '" onclick="setMode(&quot;veilig&quot;)">Veilig (tekst, geen JS)</button>';
+  if (token) { laadBladwijzers(p, kop); } else { laadLogin(p, kop); }
+}
+
+function setMode(m) {
+  mode = m;
+  localStorage.setItem('nieuwly_mode', m);
+  menu();
+  toast(m === 'volledig' ? 'Volledige weergave aan' : 'Veilige weergave aan');
+  if (huidig) laad(huidig);
+}
+
+function laadLogin(p, kop) {
+  p.innerHTML = kop +
+    '<div class="keuze">Account</div>' +
     '<input id="u" placeholder="Gebruikersnaam">' +
     '<input id="p" type="password" placeholder="Wachtwoord (min. 8 tekens)">' +
     '<button class="sub blauw" onclick="stuur(&quot;register&quot;)">Account maken</button>' +
     '<button class="sub" onclick="stuur(&quot;login&quot;)">Inloggen</button>';
 }
 
-function laadBladwijzers(p) {
-  p.innerHTML = '<h3>Bladwijzers</h3><div id="lijst">Laden...</div>' +
-    '<button class="sub" onclick="uitloggen()" style="margin-top:10px">Uitloggen</button>';
+function laadBladwijzers(p, kop) {
+  p.innerHTML = kop + '<div class="keuze">Bladwijzers</div><div id="lijst">Laden...</div>' +
+    '<div class="keuze">Geschiedenis</div><div id="hist"></div>' +
+    '<button class="sub" onclick="uitloggen()" style="margin-top:12px">Uitloggen</button>';
   fetch('/bookmarks', { headers: { 'Authorization': 'Bearer ' + token } })
     .then(function (r) { return r.json(); })
     .then(function (d) {
       var lijst = document.getElementById('lijst');
       lijst.innerHTML = '';
       var items = d.bookmarks || [];
-      if (!items.length) { lijst.innerHTML = '<div style="color:#8b97a6;font-size:13px">Nog geen bladwijzers. Gebruik de ster op een pagina.</div>'; return; }
+      if (!items.length) { lijst.innerHTML = '<div class="keuze">Nog geen bladwijzers. Gebruik de ster op een pagina.</div>'; }
       items.forEach(function (b) {
         var a = document.createElement('a');
         a.href = '#';
         a.textContent = b.title || b.url;
         a.onclick = function () { p.style.display = 'none'; openB(b.url); return false; };
         lijst.appendChild(a);
+      });
+    });
+  fetch('/history?limit=15', { headers: { 'Authorization': 'Bearer ' + token } })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      var h = document.getElementById('hist');
+      h.innerHTML = '';
+      (d.history || []).forEach(function (b) {
+        var a = document.createElement('a');
+        a.href = '#';
+        a.textContent = b.url;
+        a.onclick = function () { p.style.display = 'none'; openB(b.url); return false; };
+        h.appendChild(a);
       });
     });
 }
@@ -261,6 +409,7 @@ function uitloggen() {
   localStorage.removeItem('zelfsync_token');
   document.getElementById('panel').style.display = 'none';
   toast('Uitgelogd');
+  laadTegels();
 }
 
 function stuur(route) {
@@ -276,9 +425,59 @@ function stuur(route) {
         token = d.token;
         localStorage.setItem('zelfsync_token', token);
         toast('Ingelogd');
-        laadBladwijzers(document.getElementById('panel'));
+        menu();
+        laadTegels();
       } else { toast(d.error || 'Mislukt'); }
     });
+}
+
+function aiPanel() {
+  var ai = document.getElementById('ai');
+  var p = document.getElementById('panel');
+  p.style.display = 'none';
+  if (ai.style.display === 'block') { ai.style.display = 'none'; return; }
+  ai.style.display = 'block';
+  fetch('/ai-status').then(function (r) { return r.json(); }).then(function (d) {
+    if (d.key_set) {
+      ai.innerHTML = '<h3>AI-assistent</h3>' +
+        '<textarea id="prompt" rows="3" placeholder="Vraag iets over de huidige pagina of iets anders..."></textarea>' +
+        '<button class="sub blauw" onclick="vraagAI()">Vraag</button>' +
+        '<div id="antwoord"></div>';
+    } else {
+      ai.innerHTML = '<h3>AI instellen</h3>' +
+        '<div class="keuze">Plak je Mistral API-sleutel (console.mistral.ai). De sleutel wordt opgeslagen op jouw Pi.</div>' +
+        '<input id="sleutel" type="password" placeholder="API-sleutel">' +
+        '<button class="sub blauw" onclick="slaSleutel()">Opslaan</button>';
+    }
+  });
+}
+
+function slaSleutel() {
+  var k = document.getElementById('sleutel').value.trim();
+  if (!k) return;
+  fetch('/api-key', { method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key: k }) })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      toast(d.error || 'Sleutel opgeslagen');
+      aiPanel();
+    });
+}
+
+function vraagAI() {
+  var pr = document.getElementById('prompt').value.trim();
+  if (!pr) return;
+  var uit = document.getElementById('antwoord');
+  uit.textContent = 'Denkt na...';
+  fetch('/ask', { method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt: pr, url: huidig || '' }) })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      uit.textContent = d.answer || d.error || 'Geen antwoord.';
+    })
+    .catch(function () { uit.textContent = 'Fout bij het vragen.'; });
 }
 
 document.getElementById('frame').addEventListener('load', function () {
@@ -290,6 +489,8 @@ document.getElementById('frame').addEventListener('load', function () {
     if (t) document.title = t;
   } catch (e) {}
 });
+
+laadTegels();
 </script>
 </body>
 </html>
@@ -328,23 +529,17 @@ def hash_password(password, salt_hex):
                                bytes.fromhex(salt_hex), 120_000).hex()
 
 
-LEEG_BANNER = (
-    '<div style="font-family:system-ui,sans-serif;background:#fff7ed;color:#7c4a03;'
-    'padding:16px;border-bottom:1px solid #fcd9a8;font-size:14px">'
-    'Deze site draait vrijwel volledig op JavaScript. Newly voert JavaScript niet '
-    'uit, daarom is de weergave (bijna) leeg. Veel nieuws-, wiki- en '
-    'informatiesites tonen wel volledig.</div>')
-
-
-def proxy_page(target):
-    """Haal een pagina op en maak hem veilig toonbaar binnen onze browser."""
-    req = urllib.request.Request(target, headers={
-        "User-Agent": "Mozilla/5.0 (X11; Linux) NewlyBrowser/0.1",
+def haal_pagina(url, limiet=MAX_PAGE):
+    """Pagina ophalen (gzip, tekencodering)."""
+    req = urllib.request.Request(url, headers={
+        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+                      "(KHTML, like Gecko) Chrome/124.0 Safari/537.36",
         "Accept": "text/html,application/xhtml+xml,text/plain,*/*;q=0.5",
         "Accept-Encoding": "gzip",
+        "Accept-Language": "nl,en;q=0.8",
     })
     with urllib.request.urlopen(req, timeout=20) as resp:
-        raw = resp.read(MAX_PAGE)
+        raw = resp.read(limiet)
         final_url = resp.geturl()
         ctype = resp.headers.get("Content-Type", "text/html; charset=utf-8")
         if resp.headers.get("Content-Encoding", "").lower() == "gzip":
@@ -355,53 +550,141 @@ def proxy_page(target):
         text = raw.decode(enc, errors="replace")
     except LookupError:
         text = raw.decode("utf-8", errors="replace")
+    return text, final_url, ctype
 
+
+LEEG_BANNER = (
+    '<div style="font-family:system-ui,sans-serif;background:#fff7ed;color:#7c4a03;'
+    'padding:16px;border-bottom:1px solid #fcd9a8;font-size:14px">'
+    'Deze site draait vrijwel volledig op JavaScript. Zet de weergave op '
+    '&quot;Volledig&quot; in het Newly-menu, dan werkt deze site meestal wél.</div>')
+
+
+def proxy_page(target, mode="volledig"):
+    """Pagina ophalen en toonbaar maken binnen onze browser.
+
+    volledig: JavaScript laten staan; de iframe-sandbox van de UI isoleert de site.
+    veilig:   JavaScript verwijderen; veilige tekstweergave.
+    """
+    text, final_url, ctype = haal_pagina(target)
     is_html = "html" in ctype.lower() or "<html" in text.lower()[:4000]
     if not is_html:
         return ("<html><head><title>" + html.escape(target) + "</title></head>"
                 "<body style='font-family:system-ui,sans-serif'><pre>"
                 + html.escape(text) + "</pre></body></html>")
 
-    # 1. Scripts, event-attributen en meta-refresh verwijderen (geen JavaScript).
-    text = re.sub(r"(?is)<script\b[^>]*>.*?</script>", "", text)
-    text = re.sub(r"(?is)<script\b[^>]*/>", "", text)
-    text = re.sub(r"(?is)\son\w+\s*=\s*(\"[^\"]*\"|'[^']*'|[^\s>]+)", "", text)
-    text = re.sub(r"(?is)<meta[^>]+http-equiv=[\"']refresh[\"'][^>]*>", "", text)
+    if mode == "veilig":
+        text = re.sub(r"(?is)<script\b[^>]*>.*?</script>", "", text)
+        text = re.sub(r"(?is)<script\b[^>]*/>", "", text)
+        text = re.sub(r"(?is)\son\w+\s*=\s*(\"[^\"]*\"|'[^']*'|[^\s>]+)", "", text)
+        text = re.sub(r"(?is)<meta[^>]+http-equiv=[\"']refresh[\"'][^>]*>", "", text)
 
-    # 2. Bestaande <base> vinden en verwijderen.
     mb = re.search(r"(?is)<base[^>]+href=[\"']([^\"']+)[\"']", text)
     base = urllib.parse.urljoin(final_url, mb.group(1)) if mb else final_url
     if mb:
         text = text.replace(mb.group(0), "")
 
-    # 3. Links herschrijven zodat ze binnen deze browser blijven.
     def rewrite(m):
         v = m.group(1)
         if v.startswith(("#", "mailto:", "tel:", "javascript:", "data:")):
             return m.group(0)
         absolute = urllib.parse.urljoin(base, v)
         if absolute.startswith(("http://", "https://")):
-            return 'href="/browse?url=' + urllib.parse.quote(absolute, safe="") + '"'
+            return ('href="/browse?url=' + urllib.parse.quote(absolute, safe="")
+                    + '&amp;mode=' + mode + '"')
         return m.group(0)
     text = re.sub(r"(?is)href=[\"']([^\"']+)[\"']", rewrite, text)
 
-    # 4. Originele base injecteren zodat css/afbeeldingen goed laden.
     inject = '<base href="' + html.escape(base) + '">'
     if re.search(r"(?is)<head[^>]*>", text):
         text = re.sub(r"(?is)(<head[^>]*>)", lambda m: m.group(1) + inject, text, count=1)
     else:
         text = inject + text
 
-    # 5. Bijna lege (JavaScript-only) pagina's herkennen en aankondigen.
-    zonder_tags = re.sub(r"(?is)<style\b[^>]*>.*?</style>", " ", text)
-    zonder_tags = re.sub(r"(?is)<[^>]+>", " ", zonder_tags)
-    if len(re.sub(r"\s+", "", zonder_tags)) < 200:
-        text = LEEG_BANNER + text
+    if mode == "veilig":
+        zonder_tags = re.sub(r"(?is)<style\b[^>]*>.*?</style>", " ", text)
+        zonder_tags = re.sub(r"(?is)<[^>]+>", " ", zonder_tags)
+        if len(re.sub(r"\s+", "", zonder_tags)) < 200:
+            text = LEEG_BANNER + text
     return text
 
 
+def ddg_zoek(zoekterm):
+    """Echte zoekresultaten via DuckDuckGo (HTML-versie, opgehaald door de Pi)."""
+    results = []
+    for endpoint in ("https://html.duckduckgo.com/html/?q=",
+                     "https://lite.duckduckgo.com/lite/?q="):
+        try:
+            text, _, _ = haal_pagina(endpoint + urllib.parse.quote_plus(zoekterm))
+        except Exception:
+            continue
+        titels = re.findall(
+            r'(?is)<a[^>]+class="result__a"[^>]*href="([^"]+)"[^>]*>(.*?)</a>', text)
+        for href, titel in titels:
+            if "uddg=" in href:
+                echte = urllib.parse.unquote(href.split("uddg=")[1].split("&")[0])
+            else:
+                echte = href
+            if not echte.startswith(("http://", "https://")):
+                continue
+            t = re.sub(r"(?is)<[^>]+>", "", titel).strip()
+            if t and echte not in [r["url"] for r in results]:
+                results.append({"title": t[:200], "url": echte, "snippet": ""})
+        snippets = re.findall(
+            r'(?is)<a[^>]+class="result__snippet"[^>]*>(.*?)</a>', text)
+        for i, snip in enumerate(snippets):
+            if i < len(results) and not results[i]["snippet"]:
+                results[i]["snippet"] = re.sub(r"(?is)<[^>]+>", "", snip).strip()[:300]
+        if results:
+            break
+    return results[:15]
+
+
+def pagina_tekst(url, limiet=8000):
+    """Zichtbare tekst van een pagina, voor AI-context."""
+    text, _, ctype = haal_pagina(url)
+    text = re.sub(r"(?is)<script\b[^>]*>.*?</script>", " ", text)
+    text = re.sub(r"(?is)<style\b[^>]*>.*?</style>", " ", text)
+    text = re.sub(r"(?is)<[^>]+>", " ", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text[:limiet]
+
+
+def lees_api_key():
+    try:
+        return KEY_PATH.read_text(encoding="utf-8").strip()
+    except OSError:
+        return ""
+
+
+def ai_vraag(prompt, page_url):
+    key = lees_api_key()
+    if not key:
+        return {"error": "Nog geen API-sleutel ingesteld (menu > AI)"}
+    messages = [{"role": "system",
+                 "content": "Je bent de AI-assistent van de Newly-browser. "
+                            "Antwoord kort en in de taal van de gebruiker."}]
+    if page_url:
+        try:
+            context = pagina_tekst(page_url)
+            if context:
+                messages.append({"role": "system",
+                                 "content": "Context van de huidige pagina:" + context})
+        except Exception:
+            pass
+    messages.append({"role": "user", "content": prompt})
+    body = json.dumps({"model": LLM_MODEL, "messages": messages}).encode()
+    req = urllib.request.Request("https://api.mistral.ai/v1/chat/completions",
+                                 data=body, method="POST", headers={
+                                     "Content-Type": "application/json",
+                                     "Authorization": "Bearer " + key})
+    with urllib.request.urlopen(req, timeout=60) as resp:
+        data = json.loads(resp.read().decode("utf-8", "replace"))
+    return {"answer": data["choices"][0]["message"]["content"]}
+
+
 class Handler(BaseHTTPRequestHandler):
-    server_version = "ZelfSync/0.4"
+    server_version = "ZelfSync/0.5"
 
     # ---------- helpers ----------
     def send_json(self, code, obj):
@@ -458,15 +741,22 @@ class Handler(BaseHTTPRequestHandler):
         if self.path.startswith("/browse"):
             params = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
             target = (params.get("url") or [""])[0]
+            mode = (params.get("mode") or ["volledig"])[0]
+            if mode not in ("volledig", "veilig"):
+                mode = "volledig"
             if not target.startswith(("http://", "https://")):
                 self.send_html(400,
                                "<h3 style='font-family:system-ui'>Ongeldig adres</h3>"
                                "<p><a href='/'>Terug naar Newly</a></p>")
                 return
             try:
-                self.send_html(200, proxy_page(target),
-                               csp="script-src 'none'; object-src 'none'; "
-                                   "frame-src 'none'; frame-ancestors 'self'")
+                if mode == "veilig":
+                    self.send_html(200, proxy_page(target, "veilig"),
+                                   csp="script-src 'none'; object-src 'none'; "
+                                       "frame-src 'none'; frame-ancestors 'self'")
+                else:
+                    self.send_html(200, proxy_page(target, "volledig"),
+                                   csp="frame-ancestors 'self'")
             except Exception as exc:
                 self.send_html(502,
                     "<div style='font-family:system-ui;max-width:560px;margin:60px auto'>"
@@ -475,11 +765,25 @@ class Handler(BaseHTTPRequestHandler):
                     "<p><a href='/'>Terug naar Newly</a></p></div>",
                     csp="script-src 'none'")
             return
+        if self.path.startswith("/search"):
+            params = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
+            q = (params.get("q") or [""])[0].strip()
+            if not q:
+                self.send_json(400, {"error": "lege zoekterm"})
+                return
+            try:
+                self.send_json(200, {"results": ddg_zoek(q)})
+            except Exception as exc:
+                self.send_json(502, {"error": "Zoeken mislukt: " + str(exc)})
+            return
+        if self.path == "/ai-status":
+            self.send_json(200, {"key_set": bool(lees_api_key())})
+            return
 
         con = connect()
         try:
             if self.path == "/health":
-                self.send_json(200, {"status": "ok", "server": "zelfsync", "version": "0.4"})
+                self.send_json(200, {"status": "ok", "server": "zelfsync", "version": "0.5"})
                 return
             user = self.auth_user(con)
             if not user:
@@ -521,6 +825,31 @@ class Handler(BaseHTTPRequestHandler):
         try:
             path = self.path.rstrip("/")
             body = self.read_json() or {}
+            if path == "/api-key":
+                key = str(body.get("key", "")).strip()
+                if len(key) < 10:
+                    self.send_json(400, {"error": "dat lijkt geen geldige sleutel"})
+                    return
+                KEY_PATH.write_text(key, encoding="utf-8")
+                try:
+                    KEY_PATH.chmod(0o600)
+                except OSError:
+                    pass
+                self.send_json(200, {"ok": True})
+                return
+            if path == "/ask":
+                prompt = str(body.get("prompt", ""))[:4000]
+                if not prompt:
+                    self.send_json(400, {"error": "lege vraag"})
+                    return
+                try:
+                    self.send_json(200, ai_vraag(prompt, str(body.get("url", ""))))
+                except urllib.error.HTTPError as exc:
+                    self.send_json(502, {"error": "LLM-api gaf fout " + str(exc.code)
+                                               + " (controleer je API-sleutel)"})
+                except Exception as exc:
+                    self.send_json(502, {"error": str(exc)})
+                return
             if path == "/register":
                 username = str(body.get("username", "")).strip()
                 password = str(body.get("password", ""))
