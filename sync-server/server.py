@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""ZelfSync + Newly browser-in-browser (Raspberry Pi 5). Versie 0.6.
+"""ZelfSync + Newly browser-in-browser (Raspberry Pi 5). Versie 0.7.
 
 Taken:
 1. Sync-server: accounts, bladwijzers, geschiedenis (SQLite).
@@ -10,9 +10,11 @@ Taken:
      bezoekt), in je bladwijzers/geschiedenis, in Wikipedia (nl) en er
      worden webadressen geraden.
    - AI-assistent via je eigen Mistral API-sleutel, opgeslagen op de Pi
-3. Sites die weergave in een omlijst kader blokkeren (X-Frame-Options)
-   worden via de proxy van de Pi opgehaald. Knop "Openen buiten Newly"
-   is de nooduitgang voor sites die dat niet overleven.
+3. Volledige proxy-engine: ALLE bronnen van een site (css, js, afbeeldingen,
+   api-calls, formulieren) lopen via de Pi. Zo geen CORS-, referrer- of
+   oorsprong-blokkades en zien sites eruit zoals bedoeld.
+4. Ingebouwde advertentieblokkering: bekende advertentie-/trackerdomeinen
+   worden geblokkeerd op de Pi zelf.
 
 Start:      python3 server.py      (poort 8765, of ZELFSYNC_PORT=...)
 Service:    zie install-pi.sh (systemd)
@@ -34,13 +36,13 @@ from pathlib import Path
 
 DB_PATH = Path(__file__).resolve().parent / "data" / "zelfsync.db"
 DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-KEY_PATH = DB_PATH.parent / "apikey.txt"
+KEY_PATH = DB_PATH.parent / "data" / "apikey.txt"
 MAX_BODY = 1_000_000
 MAX_PAGE = 6 * 1024 * 1024
 PORT = int(os.environ.get("ZELFSYNC_PORT", "8765"))
 LLM_MODEL = os.environ.get("LLM_MODEL", "mistral-small-latest")
 UA_STR = ("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
-          "(KHTML, like Gecko) Chrome/124.0 Safari/537.36 NewlyBrowser/0.6")
+          "(KHTML, like Gecko) Chrome/124.0 Safari/537.36 NewlyBrowser/0.7")
 
 INDEX_HTML = """<!DOCTYPE html>
 <html lang="nl">
@@ -512,6 +514,7 @@ function menu() {
     '<div class="keuze">Weergave</div>' +
     '<button class="sub' + (mode === 'volledig' ? ' blauw' : '') + '" onclick="setMode(&quot;volledig&quot;)">Volledig (JavaScript aan)</button>' +
     '<button class="sub' + (mode === 'veilig' ? ' blauw' : '') + '" onclick="setMode(&quot;veilig&quot;)">Veilig (zonder JavaScript)</button>' +
+    '<div class="keuze">Advertentieblokkering: aan (ingebouwd)</div>' +
     '<div class="keuze">Sneltoetsen: Ctrl+L adres, Ctrl+T nieuw tabblad, Ctrl+W sluiten, Ctrl+D bladwijzer</div>';
   if (token) { laadBladwijzers(p, kop); } else { laadLogin(p, kop); }
 }
@@ -728,19 +731,22 @@ def koekjes_opslaan(host, headers):
             KOEKJES.setdefault(host, {})[k.strip()] = v.strip()
 
 
-def haal_pagina(url, limiet=MAX_PAGE, timeout=20):
-    """Pagina ophalen (gzip, tekencodering, cookies, ook foutpagina's van de site zelf)."""
+def haal_bron(url, method="GET", body=None, content_type=None,
+              limiet=MAX_PAGE, timeout=25):
+    """Ruwe bytes van een bron ophalen (gzip, cookies, ook foutpagina's)."""
     host = urllib.parse.urlsplit(url).hostname or ""
     headers = {
         "User-Agent": UA_STR,
-        "Accept": "text/html,application/xhtml+xml,application/json;q=0.9,text/plain,*/*;q=0.5",
+        "Accept": "*/*",
         "Accept-Encoding": "gzip",
         "Accept-Language": "nl-NL,nl;q=0.9,en;q=0.8",
     }
     koek = koekjes_voor(host)
     if koek:
         headers["Cookie"] = koek
-    req = urllib.request.Request(url, headers=headers)
+    if body is not None:
+        headers["Content-Type"] = content_type or "application/x-www-form-urlencoded"
+    req = urllib.request.Request(url, data=body, method=method, headers=headers)
     try:
         resp = urllib.request.urlopen(req, timeout=timeout)
         status = getattr(resp, "status", 200) or 200
@@ -751,7 +757,7 @@ def haal_pagina(url, limiet=MAX_PAGE, timeout=20):
     try:
         raw = resp.read(limiet)
         final_url = resp.geturl()
-        ctype = resp.headers.get("Content-Type", "text/html; charset=utf-8")
+        ctype = resp.headers.get("Content-Type", "application/octet-stream")
         if resp.headers.get("Content-Encoding", "").lower() == "gzip":
             try:
                 raw = gzip.decompress(raw)
@@ -760,13 +766,22 @@ def haal_pagina(url, limiet=MAX_PAGE, timeout=20):
         koekjes_opslaan(urllib.parse.urlsplit(final_url).hostname or host, resp.headers)
     finally:
         resp.close()
-    m = re.search(r"charset\s*=\s*['\"]?([\w.-]+)", ctype)
+    return raw, final_url, ctype, int(status)
+
+
+def als_tekst(raw, ctype):
+    m = re.search(r"charset\s*=\s*['\"]?([\w.-]+)", ctype or "")
     enc = m.group(1) if m else "utf-8"
     try:
-        text = raw.decode(enc, errors="replace")
+        return raw.decode(enc, errors="replace")
     except LookupError:
-        text = raw.decode("utf-8", errors="replace")
-    return text, final_url, ctype, int(status)
+        return raw.decode("utf-8", errors="replace")
+
+
+def haal_pagina(url, limiet=MAX_PAGE, timeout=20):
+    """Tekstversie van een bron (voor zoeken en AI-context)."""
+    raw, final_url, ctype, status = haal_bron(url, limiet=limiet, timeout=timeout)
+    return als_tekst(raw, ctype), final_url, ctype, status
 
 
 def zichtbare_tekst(text):
@@ -812,63 +827,193 @@ FOUT_BANNER_TEMPLATE = (
     '<a style="color:#b91c1c;font-weight:600" href="/browse?url={url}&amp;mode=volledig">'
     'Opnieuw in volledige modus</a></div>')
 
+FOUT_PAGINA = (
+    "<div style='font-family:system-ui,sans-serif;max-width:620px;margin:60px auto;padding:0 20px'>"
+    "<h2 style='margin-bottom:4px'>Deze pagina kon niet worden geladen</h2>"
+    "<p style='color:#777;font-size:14px'>__MELDING__</p>"
+    "<p style='font-size:14px'>Sommige sites (zoals Microsoft) blokkeren weergave "
+    "in een omlijst kader of beschermen zich tegen servers die pagina's ophalen. "
+    "Je kunt de pagina ook buiten Newly openen:</p>"
+    "<p><a href='__URL__' target='_blank' rel='noopener'>Openen buiten Newly</a> &nbsp;|&nbsp; "
+    "<a href='/browse?url=__URL_Q__&amp;mode=veilig'>Opnieuw in veilige modus</a></p>"
+    "<p style='margin-top:40px'><a href='/'>Terug naar Newly</a></p></div>")
 
-def proxy_page(target, mode="volledig"):
-    """Pagina ophalen en toonbaar maken binnen Newly.
 
-    volledig: JavaScript laten staan; de sandbox van het tabblad isoleert de site.
-    veilig:   JavaScript verwijderen; snelle, veilige tekstweergave.
-    Alleen links (a href) worden herschreven, zodat stylesheets, afbeeldingen en
-    fonts rechtstreeks van de site laden (dat was de oorzaak van rare weergave).
-    """
-    text, final_url, ctype, status = haal_pagina(target)
-    is_html = "html" in ctype.lower() or "<html" in text.lower()[:4000]
-    if not is_html:
-        return ("<html><head><title>" + html.escape(target) + "</title></head>"
-                "<body style='font-family:system-ui,sans-serif;margin:24px;color:#222'>"
-                "<p>Dit adres geeft geen webpagina (type: " + html.escape(ctype.split(";")[0]) + ").</p>"
-                "<p><a href='/'>Terug naar Newly</a></p></body></html>", status, final_url)
+# ---------- advertentieblokkering op de Pi zelf ----------
+GEBLOKKEERDE_HOSTS = (
+    "doubleclick.net", "googlesyndication.com", "googleadservices.com",
+    "google-analytics.com", "googletagmanager.com", "adservice.google.com",
+    "adnxs.com", "adform.net", "advertising.com", "adsystem.com",
+    "amazon-adsystem.com", "criteo.com", "criteo.net", "taboola.com",
+    "outbrain.com", "pubmatic.com", "rubiconproject.com", "openx.net",
+    "casalemedia.com", "bidswitch.net", "33across.com", "sharethrough.com",
+    "scorecardresearch.com", "quantserve.com", "hotjar.com", "moatads.com",
+    "ads-twitter.com", "analytics.tiktok.com", "facebook.net",
+    "mc.yandex.ru", "lijit.com", "spotxchange.com",
+)
 
+def is_ad_host(host):
+    host = (host or "").lower().strip(".")
+    return any(host == h or host.endswith("." + h) for h in GEBLOKKEERDE_HOSTS)
+
+
+# ---------- volledige proxy-engine ----------
+def proxificeer(v, base, mode, route="/browse"):
+    absolute = urllib.parse.urljoin(base, v)
+    if not absolute.startswith(("http://", "https://")):
+        return None
+    return route + "?url=" + urllib.parse.quote(absolute, safe="") + "&amp;mode=" + mode
+
+
+def bewerk_urls(text, base, mode):
+    """src-, href-, poster- en data-src-kenmerken via de Pi laten lopen."""
+    def vervang(m):
+        attr, quote, v = m.group(1), m.group(2), m.group(3).strip()
+        if not v or v.startswith(("#", "mailto:", "tel:", "javascript:", "data:",
+                                  "blob:", "about:", "sms:")):
+            return m.group(0)
+        prox = proxificeer(v, base, mode)
+        if prox:
+            return attr + "=" + quote + prox + quote
+        return m.group(0)
+    return re.sub(r"(?is)\b(src|href|poster|data-src)\s*=\s*([\"'])(.*?)\2", vervang, text)
+
+
+def bewerk_srcset(text, base, mode):
+    def vervang(m):
+        quote, waarde = m.group(1), m.group(2)
+        delen = []
+        for stuk in waarde.split(","):
+            onderdelen = stuk.strip().split()
+            if not onderdelen:
+                continue
+            absolute = urllib.parse.urljoin(base, onderdelen[0])
+            if absolute.startswith(("http://", "https://")):
+                onderdelen[0] = ("/browse?url="
+                                 + urllib.parse.quote(absolute, safe=""))
+            delen.append(" ".join(onderdelen))
+        return "srcset=" + quote + ",".join(delen) + quote
+    return re.sub(r"(?is)\bsrcset\s*=\s*([\"'])(.*?)\1", vervang, text)
+
+
+def bewerk_forms(text, base, mode):
+    """Formulieren via de Pi laten indienen (GET en POST)."""
+    def vervang(m):
+        quote, v = m.group(1), m.group(2).strip()
+        if not v or v.startswith(("javascript:", "data:", "blob:")):
+            return m.group(0)
+        prox = proxificeer(v, base, mode, route="/form")
+        if prox:
+            return "action=" + quote + prox + quote
+        return m.group(0)
+    text = re.sub(r"(?is)\baction\s*=\s*([\"'])(.*?)\1", vervang, text)
+    standaard = ("/form?url=" + urllib.parse.quote(base, safe="") + "&amp;mode=" + mode)
+
+    def injecteer(m):
+        return m.group(0)[:-1] + ' action="' + standaard + '">'
+
+    text = re.sub(r"(?is)<form(?![^>]*\baction\b)[^>]*>", injecteer, text)
+    return text
+
+
+def herschrijf_css(text, css_url):
+    """url(...) en @import in stylesheets via de Pi laten lopen."""
+    def prox(v):
+        if not v or v.startswith(("data:", "#", "blob:", "about:")):
+            return None
+        absolute = urllib.parse.urljoin(css_url, v)
+        if not absolute.startswith(("http://", "https://")):
+            return None
+        return "url('/browse?url=" + urllib.parse.quote(absolute, safe="") + "')"
+
+    def vervang_q(m):
+        return prox(m.group(2)) or m.group(0)
+
+    def vervang_zonder_quotes(m):
+        return prox(m.group(1)) or m.group(0)
+
+    def import_vervang(m):
+        absolute = urllib.parse.urljoin(css_url, m.group(2))
+        if absolute.startswith(("http://", "https://")):
+            return ("@import '/browse?url="
+                    + urllib.parse.quote(absolute, safe="") + "'")
+        return m.group(0)
+
+    text = re.sub(r"(?i)url\(\s*(['\"])([^'\"]+)\1\s*\)", vervang_q, text)
+    text = re.sub(r"(?i)url\(\s*([^)'\"\s]+)\s*\)", vervang_zonder_quotes, text)
+    text = re.sub(r"(?i)@import\s+(['\"])([^'\"]+)\1", import_vervang, text)
+    return text
+
+
+# Scriptje dat in elke pagina wordt gezet: fetch/XHR van de site gaan
+# ook via de Pi, zodat api-calls geen CORS- of oorsprongblokkades meer kennen.
+SHIM_TEMPLATE = (
+    "<script>"
+    "(function(){"
+    "var BASE=__BASE__;"
+    "function p(u){"
+    "try{"
+    "if(!u||typeof u!=='string')return u;"
+    "if(u.indexOf('/browse')===0||u.indexOf('/form')===0)return u;"
+    "if(u.indexOf('data:')===0||u.indexOf('blob:')===0)return u;"
+    "var a=new URL(u,BASE);"
+    "if(a.protocol!=='http:'&&a.protocol!=='https:')return u;"
+    "return '/browse?url='+encodeURIComponent(a.href);"
+    "}catch(e){return u;}"
+    "}"
+    "var of=window.fetch;"
+    "if(of){window.fetch=function(input,init){"
+    "try{"
+    "if(typeof input==='string'){input=p(input);}"
+    "else if(input&&input.url){input=new Request(p(input.url),input);}"
+    "}catch(e){}"
+    "return of.call(window,input,init);"
+    "};}"
+    "var oo=XMLHttpRequest.prototype.open;"
+    "XMLHttpRequest.prototype.open=function(m,u){"
+    "var rest=Array.prototype.slice.call(arguments,2);"
+    "try{u=p(u);}catch(e){}"
+    "return oo.apply(this,[m,u].concat(rest));"
+    "};"
+    "})();"
+    "</script>")
+
+
+def bewerk_html(text, final_url, mode, status):
+    """HTML toonbaar maken binnen Newly: alle bronnen lopen via de Pi."""
     if mode == "veilig":
         text = re.sub(r"(?is)<script\b[^>]*>.*?</script>", "", text)
         text = re.sub(r"(?is)<script\b[^>]*/>", "", text)
         text = re.sub(r"(?is)\son\w+\s*=\s*(\"[^\"]*\"|'[^']*'|[^\s>]+)", "", text)
-        text = re.sub(r"(?is)<meta[^>]+http-equiv=[\"']refresh[\"'][^>]*>", "", text)
+
+    # Meta-CSP en meta-refresh weg: die kloppen niet meer vanaf ons eigen adres
+    text = re.sub(r"(?is)<meta[^>]+http-equiv\s*=\s*[\"']content-security-policy[\"'][^>]*>", "", text)
+    text = re.sub(r"(?is)<meta[^>]+http-equiv\s*=\s*[\"']refresh[\"'][^>]*>", "", text)
 
     mb = re.search(r"(?is)<base[^>]+href=[\"']([^\"']+)[\"']", text)
     base = urllib.parse.urljoin(final_url, mb.group(1)) if mb else final_url
     if mb:
         text = text.replace(mb.group(0), "")
 
-    def herschrijf(m):
-        tagged = m.group(0)
-        quote = m.group(1)
-        v = m.group(2)
-        if v.startswith(("#", "mailto:", "tel:", "javascript:", "data:")):
-            return tagged
-        absolute = urllib.parse.urljoin(base, v)
-        if not absolute.startswith(("http://", "https://")):
-            return tagged
-        proxied = ("/browse?url=" + urllib.parse.quote(absolute, safe="")
-                   + "&amp;mode=" + mode)
-        return tagged.replace("href=" + quote + v + quote,
-                              "href=" + quote + proxied + quote, 1)
-
-    text = re.sub(r"(?is)<a\b[^>]*?\bhref=([\"'])(.*?)\1", herschrijf, text)
+    text = bewerk_urls(text, base, mode)
+    text = bewerk_srcset(text, base, mode)
+    text = bewerk_forms(text, base, mode)
+    text = re.sub(r"(?is)\s+integrity\s*=\s*([\"']).*?\1", "", text)
 
     inject = '<base href="' + html.escape(base) + '">'
+    if mode == "volledig":
+        inject = inject + SHIM_TEMPLATE.replace("__BASE__", json.dumps(base))
     if re.search(r"(?is)<head[^>]*>", text):
         text = re.sub(r"(?is)(<head[^>]*>)", lambda m: m.group(1) + inject, text, count=1)
     else:
         text = inject + text
 
     if status >= 400:
-        text = FOUT_BANNER_TEMPLATE.replace("{url}", urllib.parse.quote(target, safe="")) \
+        text = FOUT_BANNER_TEMPLATE.replace("{url}", urllib.parse.quote(base, safe="")) \
                                   .replace("{status}", str(status)) + text
-    elif mode == "veilig":
-        if len(zichtbare_tekst(text)) < 200:
-            text = LEEG_BANNER_TEMPLATE.replace("{url}", urllib.parse.quote(target, safe="")) + text
-    return text, status, final_url
+    elif mode == "veilig" and len(zichtbare_tekst(text)) < 200:
+        text = LEEG_BANNER_TEMPLATE.replace("{url}", urllib.parse.quote(base, safe="")) + text
+    return text, base
 
 
 # ---------- Nieuwsearch: de eigen zoekmachine van Newly ----------
@@ -1031,7 +1176,7 @@ def ai_vraag(prompt, page_url):
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "ZelfSync/0.6"
+    server_version = "ZelfSync/0.7"
 
     # ---------- helpers ----------
     def send_json(self, code, obj):
@@ -1073,6 +1218,59 @@ class Handler(BaseHTTPRequestHandler):
         return con.execute("SELECT id, username FROM users WHERE token = ?",
                            (token,)).fetchone()
 
+    def dien_pagina(self, target, mode, method="GET", body=None, content_type=None):
+        """Elk bronbestand via de Pi serveren (html, css, js, beeld, json)."""
+        host = urllib.parse.urlsplit(target).hostname or ""
+        if method == "GET" and is_ad_host(host):
+            self.send_response(204)
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
+        try:
+            raw, final_url, ctype, status = haal_bron(
+                target, method=method, body=body, content_type=content_type)
+        except Exception as exc:
+            self.send_html(502, FOUT_PAGINA.replace("__MELDING__", html.escape(str(exc)))
+                           .replace("__URL__", html.escape(target, quote=True))
+                           .replace("__URL_Q__", urllib.parse.quote(target, safe="")),
+                           csp="script-src 'none'")
+            return
+        ct = (ctype or "").lower()
+        csp = None
+        cache = "max-age=3600"
+        if "text/css" in ct:
+            payload = herschrijf_css(als_tekst(raw, ctype), final_url).encode("utf-8", "replace")
+            ctype = "text/css; charset=utf-8"
+        elif "html" in ct or b"<html" in raw[:2000].lower():
+            tekst, base = bewerk_html(als_tekst(raw, ctype), final_url, mode, status)
+            payload = tekst.encode("utf-8", "replace")
+            ctype = "text/html; charset=utf-8"
+            csp = ("script-src 'none'; object-src 'none'; frame-src 'none'; "
+                   "frame-ancestors 'self'") if mode == "veilig" else "frame-ancestors 'self'"
+            cache = "no-store"
+            try:
+                indexeer(final_url, tekst, status)
+            except Exception:
+                pass
+        elif any(t in ct for t in ("javascript", "json", "text/", "svg", "xml")):
+            payload = als_tekst(raw, ctype).encode("utf-8", "replace")
+            if "charset" in ctype:
+                ctype = re.sub(r"charset=[\w.-]+", "charset=utf-8", ctype)
+            else:
+                ctype = ctype + "; charset=utf-8"
+        else:
+            payload = raw
+        self.send_response(200)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Cache-Control", cache)
+        self.send_header("Content-Length", str(len(payload)))
+        if csp:
+            self.send_header("Content-Security-Policy", csp)
+        self.end_headers()
+        self.wfile.write(payload)
+
     # ---------- routing ----------
     def do_OPTIONS(self):
         self.send_response(204)
@@ -1085,42 +1283,30 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/" or self.path.startswith("/?"):
             self.send_html(200, INDEX_HTML)
             return
-        if self.path.startswith("/browse"):
-            params = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
+        if self.path.startswith("/browse") or self.path.startswith("/form"):
+            params = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query,
+                                           keep_blank_values=True)
             target = (params.get("url") or [""])[0]
             mode = (params.get("mode") or ["volledig"])[0]
             if mode not in ("volledig", "veilig"):
                 mode = "volledig"
+            if self.path.startswith("/form") and target.startswith(("http://", "https://")):
+                extra = []
+                for k, lijst in params.items():
+                    if k in ("url", "mode"):
+                        continue
+                    for v in lijst:
+                        extra.append((k, v))
+                if extra:
+                    delen = urllib.parse.urlsplit(target)
+                    q = urllib.parse.parse_qsl(delen.query, keep_blank_values=True) + extra
+                    target = delen._replace(query=urllib.parse.urlencode(q)).geturl()
             if not target.startswith(("http://", "https://")):
                 self.send_html(400,
                                "<h3 style='font-family:system-ui'>Ongeldig adres</h3>"
                                "<p><a href='/'>Terug naar Newly</a></p>")
                 return
-            try:
-                pagina, status, final_url = proxy_page(target, mode)
-                if mode == "veilig":
-                    self.send_html(200, pagina, csp="script-src 'none'; object-src 'none'; "
-                                    "frame-src 'none'; frame-ancestors 'self'")
-                else:
-                    self.send_html(200, pagina, csp="frame-ancestors 'self'")
-                try:
-                    indexeer(final_url, pagina, status)
-                except Exception:
-                    pass
-            except Exception as exc:
-                self.send_html(502,
-                    "<div style='font-family:system-ui,sans-serif;max-width:620px;margin:60px auto;padding:0 20px'>"
-                    "<h2 style='margin-bottom:4px'>Deze pagina kon niet worden geladen</h2>"
-                    "<p style='color:#777;font-size:14px'>" + html.escape(str(exc)) + "</p>"
-                    "<p style='font-size:14px'>Sommige sites (zoals Microsoft) blokkeren weergave "
-                    "in een omlijst kader of beschermen zich tegen servers die pagina's ophalen. "
-                    "Je kunt de pagina ook buiten Newly openen:</p>"
-                    "<p><a href='" + html.escape(target, quote=True) + "' target='_blank' rel='noopener'>"
-                    "Openen buiten Newly</a> &nbsp;|&nbsp; "
-                    "<a href='/browse?url=" + urllib.parse.quote(target, safe="")
-                    + "&amp;mode=veilig'>Opnieuw in veilige modus</a></p>"
-                    "<p style='margin-top:40px'><a href='/'>Terug naar Newly</a></p></div>",
-                    csp="script-src 'none'")
+            self.dien_pagina(target, mode)
             return
         if self.path.startswith("/search"):
             params = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
@@ -1171,7 +1357,7 @@ class Handler(BaseHTTPRequestHandler):
         con = connect()
         try:
             if self.path == "/health":
-                self.send_json(200, {"status": "ok", "server": "zelfsync", "version": "0.6"})
+                self.send_json(200, {"status": "ok", "server": "zelfsync", "version": "0.7"})
                 return
             user = self.auth_user(con)
             if not user:
@@ -1209,6 +1395,23 @@ class Handler(BaseHTTPRequestHandler):
             con.close()
 
     def do_POST(self):
+        if self.path.startswith("/browse") or self.path.startswith("/form"):
+            params = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
+            target = (params.get("url") or [""])[0]
+            mode = (params.get("mode") or ["volledig"])[0]
+            if mode not in ("volledig", "veilig"):
+                mode = "volledig"
+            if not target.startswith(("http://", "https://")):
+                self.send_html(400, "<h3 style='font-family:system-ui'>Ongeldig adres</h3>")
+                return
+            try:
+                length = int(self.headers.get("Content-Length", "0") or 0)
+            except ValueError:
+                length = 0
+            inhoud = self.rfile.read(min(length, MAX_BODY)) if length > 0 else None
+            self.dien_pagina(target, mode, method="POST", body=inhoud,
+                             content_type=self.headers.get("Content-Type", ""))
+            return
         con = connect()
         try:
             path = self.path.rstrip("/")
@@ -1304,6 +1507,7 @@ def main():
     print("ZelfSync + Newly browser-in-browser draait op poort %d" % PORT)
     print("Open in een browser op hetzelfde netwerk: http://<pi-adres>:%d/" % PORT)
     print("Nieuwsearch zoekt in je eigen index, Wikipedia (nl) en raadt webadressen.")
+    print("Volledige proxy aan: alle bronnen en advertentieblokkering lopen via de Pi.")
     try:
         ThreadingHTTPServer(("0.0.0.0", PORT), Handler).serve_forever()
     except KeyboardInterrupt:
