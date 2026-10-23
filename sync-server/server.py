@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""ZelfSync + Newly browser-in-browser (Raspberry Pi 5). Versie 0.8.
+"""ZelfSync + Newly browser-in-browser (Raspberry Pi 5). Versie 0.9.
 
 Taken:
 1. Sync-server: accounts, bladwijzers, geschiedenis (SQLite).
@@ -8,13 +8,13 @@ Taken:
    - Nieuwsearch: de eigen zoekmachine van Newly (eigen index op de Pi,
      bladwijzers/geschiedenis, Wikipedia nl, webadres-radiging)
    - AI-assistent via je eigen Mistral API-sleutel, opgeslagen op de Pi
-3. Volledige proxy-engine: ALLE bronnen (css, js, afbeeldingen, api-calls,
-   formulieren, video met Range-verzoeken) lopen via de Pi.
-   Links van moderne JavaScript-sites werken door pushState-opvang.
+3. Volledige proxy-engine: ALLE bronnen lopen via de Pi, met ABSOLUUT
+   herschreven adressen (http://pi:8765/browse?...). Relatieve paden
+   werden door de <base>-tag van de site verkeerd opgelost - dat was de
+   oorzaak van dode links, kapotte css en formulieren.
 4. Ingebouwde advertentieblokkering op de Pi zelf.
-5. Knop "Echte browser": opent een echte Chromium op de Pi via schermdeling
-   (poort 6080, zie install-pi.sh). Daar werkt alles: video's, inloggen,
-   en sites die servers blokkeren.
+5. Knop "Echte browser": echte Chromium op de Pi via schermdeling
+   (poort 6080, zie install-pi.sh). Daar werkt alles.
 
 Start:      python3 server.py      (poort 8765, of ZELFSYNC_PORT=...)
 Service:    zie install-pi.sh (systemd)
@@ -42,7 +42,7 @@ MAX_PAGE = 6 * 1024 * 1024
 PORT = int(os.environ.get("ZELFSYNC_PORT", "8765"))
 LLM_MODEL = os.environ.get("LLM_MODEL", "mistral-small-latest")
 UA_STR = ("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
-          "(KHTML, like Gecko) Chrome/124.0 Safari/537.36 NewlyBrowser/0.8")
+          "(KHTML, like Gecko) Chrome/124.0 Safari/537.36 NewlyBrowser/0.9")
 
 INDEX_HTML = """<!DOCTYPE html>
 <html lang="nl">
@@ -842,7 +842,7 @@ LEEG_BANNER_TEMPLATE = (
     '<div style="font-family:system-ui,sans-serif;background:#fff7ed;color:#7c4a03;'
     'padding:16px;border-bottom:1px solid #fcd9a8;font-size:14px">'
     'Deze site draait vrijwel volledig op JavaScript. '
-    '<a style="color:#b45309;font-weight:600" href="/browse?url={url}&amp;mode=volledig">'
+    '<a style="color:#b45309;font-weight:600" href="{basis}/browse?url={url}&amp;mode=volledig">'
     'Openen in volledige modus</a> werkt meestal wel, '
     'of gebruik de Tv-knop voor de echte browser.</div>')
 
@@ -850,7 +850,7 @@ FOUT_BANNER_TEMPLATE = (
     '<div style="font-family:system-ui,sans-serif;background:#fef2f2;color:#991b1b;'
     'padding:16px;border-bottom:1px solid #fecaca;font-size:14px">'
     'De site gaf een HTTP-{status}-foutmelding; hieronder zie je de foutpagina van de site zelf. '
-    '<a style="color:#b91c1c;font-weight:600" href="/browse?url={url}&amp;mode=volledig">'
+    '<a style="color:#b91c1c;font-weight:600" href="{basis}/browse?url={url}&amp;mode=volledig">'
     'Opnieuw in volledige modus</a> of gebruik de Tv-knop voor de echte browser.</div>')
 
 FOUT_PAGINA = (
@@ -884,19 +884,17 @@ def is_ad_host(host):
 
 
 # ---------- volledige proxy-engine ----------
-def proxificeer(v, base, mode, route="/browse"):
+# Belangrijk: alle herschreven adressen zijn ABSOLUUT (http://pi:8765/...),
+# zodat de <base>-tag van de site ze niet kan verpesten.
+def proxificeer(v, base, mode, oorsprong, route="/browse"):
     absolute = urllib.parse.urljoin(base, v)
     if not absolute.startswith(("http://", "https://")):
         return None
-    return route + "?url=" + urllib.parse.quote(absolute, safe="") + "&amp;mode=" + mode
+    return oorsprong + route + "?url=" + urllib.parse.quote(absolute, safe="") + "&amp;mode=" + mode
 
 
-def bewerk_urls(text, base, mode):
-    """src-, href-, poster- en data-src-kenmerken via de Pi laten lopen.
-
-    Anker-links (href="#...") zijn apart: met een <base>-tag herladen die
-    anders de hele pagina of navigeren ze naar het geblokkeerde echte adres.
-    """
+def bewerk_urls(text, base, mode, oorsprong):
+    """src-, href-, poster- en data-src-kenmerken via de Pi laten lopen."""
     def vervang(m):
         attr, quote, v = m.group(1), m.group(2), m.group(3).strip()
         if not v:
@@ -905,20 +903,20 @@ def bewerk_urls(text, base, mode):
             if attr != "href":
                 return m.group(0)
             if len(v) > 1:
-                return ("href=" + quote + "/browse?url="
+                return ("href=" + quote + oorsprong + "/browse?url="
                         + urllib.parse.quote(base, safe="") + v + quote)
             return "href=" + quote + "javascript:void(0)" + quote
         if v.startswith(("mailto:", "tel:", "javascript:", "data:",
                          "blob:", "about:", "sms:")):
             return m.group(0)
-        prox = proxificeer(v, base, mode)
+        prox = proxificeer(v, base, mode, oorsprong)
         if prox:
             return attr + "=" + quote + prox + quote
         return m.group(0)
     return re.sub(r"(?is)\b(src|href|poster|data-src)\s*=\s*([\"'])(.*?)\2", vervang, text)
 
 
-def bewerk_srcset(text, base, mode):
+def bewerk_srcset(text, base, mode, oorsprong):
     def vervang(m):
         quote, waarde = m.group(1), m.group(2)
         delen = []
@@ -928,25 +926,26 @@ def bewerk_srcset(text, base, mode):
                 continue
             absolute = urllib.parse.urljoin(base, onderdelen[0])
             if absolute.startswith(("http://", "https://")):
-                onderdelen[0] = ("/browse?url="
+                onderdelen[0] = (oorsprong + "/browse?url="
                                  + urllib.parse.quote(absolute, safe=""))
             delen.append(" ".join(onderdelen))
         return "srcset=" + quote + ",".join(delen) + quote
     return re.sub(r"(?is)\bsrcset\s*=\s*([\"'])(.*?)\1", vervang, text)
 
 
-def bewerk_forms(text, base, mode):
+def bewerk_forms(text, base, mode, oorsprong):
     """Formulieren via de Pi laten indienen (GET en POST)."""
     def vervang(m):
         quote, v = m.group(1), m.group(2).strip()
         if not v or v.startswith(("javascript:", "data:", "blob:")):
             return m.group(0)
-        prox = proxificeer(v, base, mode, route="/form")
+        prox = proxificeer(v, base, mode, oorsprong, route="/form")
         if prox:
             return "action=" + quote + prox + quote
         return m.group(0)
     text = re.sub(r"(?is)\baction\s*=\s*([\"'])(.*?)\1", vervang, text)
-    standaard = ("/form?url=" + urllib.parse.quote(base, safe="") + "&amp;mode=" + mode)
+    standaard = (oorsprong + "/form?url="
+                 + urllib.parse.quote(base, safe="") + "&amp;mode=" + mode)
 
     def injecteer(m):
         return m.group(0)[:-1] + ' action="' + standaard + '">'
@@ -991,14 +990,15 @@ SHIM_TEMPLATE = (
     "<script>"
     "(function(){"
     "var BASE=__BASE__;"
+    "var O=location.protocol+'//'+location.host;"
     "function p(u){"
     "try{"
     "if(!u||typeof u!=='string')return u;"
-    "if(u.indexOf('/browse')===0||u.indexOf('/form')===0)return u;"
+    "if(u.indexOf(O+'/browse')===0||u.indexOf(O+'/form')===0)return u;"
     "if(u.indexOf('data:')===0||u.indexOf('blob:')===0)return u;"
     "var a=new URL(u,BASE);"
     "if(a.protocol!=='http:'&&a.protocol!=='https:')return u;"
-    "return '/browse?url='+encodeURIComponent(a.href);"
+    "return O+'/browse?url='+encodeURIComponent(a.href);"
     "}catch(e){return u;}"
     "}"
     "var of=window.fetch;"
@@ -1020,8 +1020,13 @@ SHIM_TEMPLATE = (
     "</script>")
 
 
-def bewerk_html(text, final_url, mode, status):
-    """HTML toonbaar maken binnen Newly: alle bronnen lopen via de Pi."""
+def bewerk_html(text, final_url, mode, status, oorsprong=""):
+    """HTML toonbaar maken binnen Newly: alle bronnen lopen via de Pi.
+
+    oorsprong = ons eigen adres (http://pi-ip:poort). Alle herschreven
+    links worden absoluut, anders lost de <base>-tag van de site ze op
+    tegen het echte adres en krijg je "404 /browse was not found".
+    """
     if mode == "veilig":
         text = re.sub(r"(?is)<script\b[^>]*>.*?</script>", "", text)
         text = re.sub(r"(?is)<script\b[^>]*/>", "", text)
@@ -1036,9 +1041,9 @@ def bewerk_html(text, final_url, mode, status):
     if mb:
         text = text.replace(mb.group(0), "")
 
-    text = bewerk_urls(text, base, mode)
-    text = bewerk_srcset(text, base, mode)
-    text = bewerk_forms(text, base, mode)
+    text = bewerk_urls(text, base, mode, oorsprong)
+    text = bewerk_srcset(text, base, mode, oorsprong)
+    text = bewerk_forms(text, base, mode, oorsprong)
     text = re.sub(r"(?is)\s+integrity\s*=\s*([\"']).*?\1", "", text)
 
     inject = '<base href="' + html.escape(base) + '">'
@@ -1053,10 +1058,12 @@ def bewerk_html(text, final_url, mode, status):
         text = inject + text
 
     if status >= 400:
-        text = FOUT_BANNER_TEMPLATE.replace("{url}", urllib.parse.quote(base, safe="")) \
-                                  .replace("{status}", str(status)) + text
+        text = (FOUT_BANNER_TEMPLATE.replace("{basis}", oorsprong)
+                .replace("{url}", urllib.parse.quote(base, safe=""))
+                .replace("{status}", str(status)) + text)
     elif mode == "veilig" and len(zichtbare_tekst(text)) < 200:
-        text = LEEG_BANNER_TEMPLATE.replace("{url}", urllib.parse.quote(base, safe="")) + text
+        text = (LEEG_BANNER_TEMPLATE.replace("{basis}", oorsprong)
+                .replace("{url}", urllib.parse.quote(base, safe="")) + text)
     return text, base
 
 
@@ -1220,7 +1227,7 @@ def ai_vraag(prompt, page_url):
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "ZelfSync/0.8"
+    server_version = "ZelfSync/0.9"
 
     # ---------- helpers ----------
     def send_json(self, code, obj):
@@ -1271,6 +1278,10 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Content-Length", "0")
             self.end_headers()
             return
+        # Ons eigen adres: alle herschreven links in pagina's worden hier
+        # absoluut mee gemaakt (anders gooit de <base> van de site ze weg).
+        oorsprong = "http://" + (self.headers.get("Host")
+                                 or ("localhost:" + str(PORT)))
         # Videospelers vragen om stukjes (Range); die geven we 1-op-1 door
         range_header = self.headers.get("Range")
         try:
@@ -1303,7 +1314,7 @@ class Handler(BaseHTTPRequestHandler):
             payload = herschrijf_css(als_tekst(raw, ctype), final_url).encode("utf-8", "replace")
             ctype = "text/css; charset=utf-8"
         elif "html" in ct or b"<html" in raw[:2000].lower():
-            tekst, base = bewerk_html(als_tekst(raw, ctype), final_url, mode, status)
+            tekst, base = bewerk_html(als_tekst(raw, ctype), final_url, mode, status, oorsprong)
             payload = tekst.encode("utf-8", "replace")
             ctype = "text/html; charset=utf-8"
             csp = ("script-src 'none'; object-src 'none'; frame-src 'none'; "
@@ -1417,7 +1428,7 @@ class Handler(BaseHTTPRequestHandler):
         con = connect()
         try:
             if self.path == "/health":
-                self.send_json(200, {"status": "ok", "server": "zelfsync", "version": "0.8"})
+                self.send_json(200, {"status": "ok", "server": "zelfsync", "version": "0.9"})
                 return
             user = self.auth_user(con)
             if not user:
