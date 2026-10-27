@@ -3,57 +3,545 @@
 <head>
 <meta charset="utf-8">
 <title>Newly</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
-  body { margin: 0; font: 13px system-ui, sans-serif; background: #1e2227; color: #e8eaed; }
-  #bar { display: flex; gap: 6px; padding: 10px; height: 44px; box-sizing: border-box; }
-  #bar button { background: #2a3038; color: #e8eaed; border: 0; border-radius: 6px;
-    padding: 6px 12px; cursor: pointer; }
-  #tabs { display: flex; gap: 4px; padding: 0 10px; height: 28px; }
-  .tab { background: #2a3038; padding: 3px 10px; border-radius: 6px 6px 0 0; cursor: pointer;
-    max-width: 180px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-  .tab.active { background: #3a4250; }
-  #url { flex: 1; background: #2a3038; border: 0; border-radius: 6px; padding: 6px 12px;
-    color: #e8eaed; outline: none; }
+  :root {
+    --bg-primary: #1a1d26;
+    --bg-secondary: #252934;
+    --bg-tertiary: #2d313c;
+    --text-primary: #e8eaed;
+    --text-secondary: #9aa0a6;
+    --accent: #1a56db;
+    --accent-hover: #2563eb;
+    --accent-light: rgba(26, 86, 219, 0.15);
+    --border: #3a3f4a;
+    --shadow: rgba(0, 0, 0, 0.3);
+    --radius: 8px;
+    --transition: all 0.2s ease;
+  }
+
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  body {
+    font: 14px 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Tab Bar */
+  #tabs {
+    display: flex;
+    gap: 2px;
+    padding: 6px 12px;
+    height: 36px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) var(--bg-secondary);
+  }
+
+  #tabs::-webkit-scrollbar {
+    height: 4px;
+  }
+
+  #tabs::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+  }
+
+  #tabs::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 2px;
+  }
+
+  .tab {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--bg-tertiary);
+    padding: 4px 12px;
+    border-radius: 6px 6px 0 0;
+    cursor: pointer;
+    max-width: 200px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    transition: var(--transition);
+    border: 1px solid transparent;
+    border-bottom: 1px solid var(--bg-tertiary);
+  }
+
+  .tab:hover {
+    background: var(--bg-secondary);
+  }
+
+  .tab.active {
+    background: var(--accent-light);
+    color: var(--accent);
+    border-color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+
+  .tab-close {
+    font-size: 10px;
+    opacity: 0.6;
+    transition: var(--transition);
+    padding: 0 4px;
+    border-radius: 3px;
+  }
+
+  .tab-close:hover {
+    opacity: 1;
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  .tab-icon {
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+
+  /* Toolbar */
+  #bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    height: 48px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+  }
+
+  #bar button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 8px 12px;
+    cursor: pointer;
+    transition: var(--transition);
+    font-size: 14px;
+    min-width: 36px;
+    height: 36px;
+  }
+
+  #bar button:hover {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border-color: var(--accent);
+  }
+
+  #bar button:active {
+    background: var(--accent-light);
+    color: var(--accent);
+  }
+
+  #bar button i {
+    font-size: 14px;
+  }
+
+  #url {
+    flex: 1;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 8px 14px;
+    color: var(--text-primary);
+    outline: none;
+    transition: var(--transition);
+    font-size: 14px;
+    max-width: 600px;
+  }
+
+  #url:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent-light);
+  }
+
+  #url::placeholder {
+    color: var(--text-secondary);
+  }
+
+  /* AI Button */
+  #ai-button {
+    background: var(--accent);
+    color: white !important;
+    border-color: var(--accent) !important;
+    margin-left: auto;
+  }
+
+  #ai-button:hover {
+    background: var(--accent-hover) !important;
+    color: white !important;
+  }
+
+  #ai-button i {
+    color: inherit;
+  }
+
+  /* Main Content */
+  #content {
+    flex: 1;
+    position: relative;
+  }
+
+  /* Status Bar */
+  #status {
+    height: 24px;
+    background: var(--bg-secondary);
+    border-top: 1px solid var(--border);
+    padding: 0 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+
+  #status-left, #status-right {
+    display: flex;
+    gap: 16px;
+  }
+
+  /* Context Menu */
+  .context-menu {
+    position: absolute;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 6px 0;
+    min-width: 180px;
+    box-shadow: 0 8px 24px var(--shadow);
+    z-index: 1000;
+    display: none;
+  }
+
+  .context-menu.show {
+    display: block;
+  }
+
+  .context-menu-item {
+    padding: 8px 16px;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .context-menu-item:hover {
+    background: var(--accent-light);
+    color: var(--accent);
+  }
+
+  .context-menu-item.danger:hover {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+  }
+
+  /* Loading Indicator */
+  .loading {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 24px;
+    animation: spin 1s linear infinite;
+    color: var(--accent);
+  }
+
+  @keyframes spin {
+    from { transform: translate(-50%, -50%) rotate(0deg); }
+    to { transform: translate(-50%, -50%) rotate(360deg); }
+  }
+
+  /* Responsive */
+  @media (max-width: 800px) {
+    #bar {
+      padding: 6px 8px;
+    }
+
+    #bar button {
+      padding: 6px 8px;
+      min-width: 32px;
+      height: 32px;
+    }
+
+    #url {
+      padding: 6px 10px;
+      font-size: 13px;
+    }
+
+    .tab {
+      padding: 4px 8px;
+    }
+  }
+
+  /* Tooltip */
+  [title] {
+    position: relative;
+  }
+
+  [title]:hover::after {
+    content: attr(title);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+    z-index: 100;
+    box-shadow: 0 4px 12px var(--shadow);
+  }
 </style>
 </head>
 <body>
   <div id="tabs"></div>
   <div id="bar">
-    <button id="back" title="terug (fase 1)">&larr;</button>
+    <button id="back" title="Terug"><i class="fas fa-arrow-left"></i></button>
+    <button id="forward" title="Vooruit"><i class="fas fa-arrow-right"></i></button>
+    <button id="refresh" title="Verversen"><i class="fas fa-sync-alt"></i></button>
     <input id="url" placeholder="Adres of zoekterm" spellcheck="false">
-    <button id="go">Ga</button>
-    <button id="new">+ Tab</button>
+    <button id="go" title="Ga"><i class="fas fa-arrow-right"></i></button>
+    <button id="new" title="Nieuwe tab"><i class="fas fa-plus"></i></button>
+    <button id="ai-button" title="AI-assistent"><i class="fas fa-robot"></i></button>
+    <button id="menu" title="Menu"><i class="fas fa-bars"></i></button>
   </div>
+  <div id="content"></div>
+  <div id="status">
+    <div id="status-left">
+      <span id="security"><i class="fas fa-shield-alt"></i></span>
+      <span id="page-info"></span>
+    </div>
+    <div id="status-right">
+      <span id="time"></span>
+    </div>
+  </div>
+
+  <div class="context-menu" id="tab-context-menu">
+    <div class="context-menu-item" onclick="closeCurrentTab()">
+      <i class="fas fa-times"></i> Sluit tab
+    </div>
+    <div class="context-menu-item" onclick="duplicateTab()">
+      <i class="fas fa-copy"></i> Dupliceer tab
+    </div>
+    <div class="context-menu-item" onclick="closeOtherTabs()">
+      <i class="fas fa-window-close"></i> Sluit andere tabs
+    </div>
+    <div class="context-menu-item danger" onclick="closeAllTabs()">
+      <i class="fas fa-times-circle"></i> Sluit alle tabs
+    </div>
+  </div>
+
   <script>
     const api = window.nieuw;
     const tabsEl = document.getElementById('tabs');
     const urlEl = document.getElementById('url');
+    const tabContextMenu = document.getElementById('tab-context-menu');
+    let contextMenuTabIndex = -1;
 
+    // Tab management
     api.onInfo(function (info) {
-      tabsEl.innerHTML = '';
-      for (let k = 0; k < info.count; k++) {
-        const t = document.createElement('span');
-        t.className = 'tab' + (k === info.active ? ' active' : '');
-        t.textContent = info.title || 'Tab ' + (k + 1);
-        t.onclick = function () { api.activate(k); };
-        t.oncontextmenu = function (ev) { ev.preventDefault(); api.closeTab(k); };
-        tabsEl.appendChild(t);
-      }
-      if (info.i === info.active) {
-        urlEl.value = info.url || '';
-        document.title = info.title || 'Newly';
-      }
+      updateTabs(info);
+      updateUrlBar(info);
+      updateStatus(info);
     });
 
+    function updateTabs(info) {
+      tabsEl.innerHTML = '';
+      for (let k = 0; k < info.count; k++) {
+        const tab = document.createElement('div');
+        tab.className = 'tab' + (k === info.active ? ' active' : '');
+        tab.innerHTML = `
+          <i class="tab-icon fas fa-file-alt"></i>
+          <span>${info.title || 'Nieuwe tab'}</span>
+          <span class="tab-close" onclick="event.stopPropagation(); closeTab(${k});">&times;</span>
+        `;
+        tab.onclick = function () { api.activate(k); };
+        tab.oncontextmenu = function (ev) {
+          ev.preventDefault();
+          contextMenuTabIndex = k;
+          showContextMenu(ev, tabContextMenu);
+        };
+        tabsEl.appendChild(tab);
+      }
+    }
+
+    function updateUrlBar(info) {
+      if (info.i === info.active) {
+        urlEl.value = info.url || '';
+        document.title = (info.title || 'Newly') + ' - Newly';
+      }
+    }
+
+    function updateStatus(info) {
+      const securityEl = document.getElementById('security');
+      const pageInfoEl = document.getElementById('page-info');
+      
+      if (info.url && info.url.startsWith('https://')) {
+        securityEl.innerHTML = '<i class="fas fa-lock" style="color: #22c55e;"></i>';
+        securityEl.title = 'Beveiligde verbinding';
+      } else {
+        securityEl.innerHTML = '<i class="fas fa-globe"></i>';
+        securityEl.title = 'Onbeveiligde verbinding';
+      }
+      
+      pageInfoEl.textContent = info.title || '';
+    }
+
+    // Navigation
     function go() {
       let v = urlEl.value.trim();
       if (!v) return;
-      if (v.indexOf('http') !== 0 && v.indexOf('://') < 0 && v.indexOf('about:') !== 0) v = 'https://' + v;
+      if (v.indexOf('http') !== 0 && v.indexOf('://') < 0 && v.indexOf('about:') !== 0) {
+        v = 'https://' + v;
+      }
       api.navigate(v);
     }
+
     document.getElementById('go').onclick = go;
     document.getElementById('new').onclick = function () { api.newTab(null); };
-    urlEl.addEventListener('keydown', function (e) { if (e.key === 'Enter') go(); });
+    document.getElementById('back').onclick = function () { 
+      if (activeTabIndex >= 0) api.navigate('javascript:history.back()'); 
+    };
+    document.getElementById('forward').onclick = function () { 
+      if (activeTabIndex >= 0) api.navigate('javascript:history.forward()'); 
+    };
+    document.getElementById('refresh').onclick = function () { 
+      if (activeTabIndex >= 0) api.navigate('javascript:location.reload()'); 
+    };
+    
+    urlEl.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') go();
+      if (e.key === 'Escape') urlEl.blur();
+    });
+
+    // AI Button
+    document.getElementById('ai-button').onclick = function () {
+      // Open AI assistant in a new tab or show modal
+      api.newTab('https://example.com/ai');
+    };
+
+    // Context Menu
+    let activeTabIndex = 0;
+
+    function showContextMenu(ev, menu) {
+      menu.classList.add('show');
+      menu.style.left = ev.clientX + 'px';
+      menu.style.top = ev.clientY + 'px';
+    }
+
+    function hideContextMenu() {
+      tabContextMenu.classList.remove('show');
+    }
+
+    function closeTab(i) {
+      if (i === undefined) i = contextMenuTabIndex;
+      if (i >= 0) {
+        api.closeTab(i);
+        hideContextMenu();
+      }
+    }
+
+    function closeCurrentTab() {
+      const activeEl = document.querySelector('.tab.active');
+      if (activeEl) {
+        const index = Array.from(tabsEl.children).indexOf(activeEl);
+        closeTab(index);
+      }
+    }
+
+    function duplicateTab() {
+      // For now, just create a new tab
+      api.newTab(null);
+      hideContextMenu();
+    }
+
+    function closeOtherTabs() {
+      // Close all except current
+      const activeEl = document.querySelector('.tab.active');
+      if (activeEl) {
+        const keepIndex = Array.from(tabsEl.children).indexOf(activeEl);
+        for (let i = 0; i < tabsEl.children.length; i++) {
+          if (i !== keepIndex) {
+            api.closeTab(i);
+          }
+        }
+      }
+      hideContextMenu();
+    }
+
+    function closeAllTabs() {
+      // Keep at least one tab
+      while (tabsEl.children.length > 1) {
+        api.closeTab(0);
+      }
+      hideContextMenu();
+    }
+
+    // Close context menu on click elsewhere
+    document.addEventListener('click', hideContextMenu);
+
+    // Update time in status bar
+    function updateTime() {
+      const timeEl = document.getElementById('time');
+      if (timeEl) {
+        timeEl.textContent = new Date().toLocaleTimeString('nl-NL');
+      }
+    }
+    setInterval(updateTime, 1000);
+    updateTime();
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function (e) {
+      // Ctrl+T = new tab
+      if (e.ctrlKey && e.key === 't') {
+        e.preventDefault();
+        api.newTab(null);
+      }
+      // Ctrl+W = close tab
+      if (e.ctrlKey && e.key === 'w') {
+        e.preventDefault();
+        closeCurrentTab();
+      }
+      // Ctrl+Tab = next tab
+      if (e.ctrlKey && e.key === 'Tab') {
+        e.preventDefault();
+        const activeEl = document.querySelector('.tab.active');
+        if (activeEl) {
+          const tabs = Array.from(tabsEl.children);
+          const currentIndex = tabs.indexOf(activeEl);
+          const nextIndex = (currentIndex + 1) % tabs.length;
+          api.activate(nextIndex);
+        }
+      }
+      // Ctrl+Shift+Tab = previous tab
+      if (e.ctrlKey && e.shiftKey && e.key === 'Tab') {
+        e.preventDefault();
+        const activeEl = document.querySelector('.tab.active');
+        if (activeEl) {
+          const tabs = Array.from(tabsEl.children);
+          const currentIndex = tabs.indexOf(activeEl);
+          const prevIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+          api.activate(prevIndex);
+        }
+      }
+    });
   </script>
 </body>
 </html>

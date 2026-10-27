@@ -3,42 +3,896 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Newly — webversie (stub)</title>
+<title>Newly  Web AI Assistent</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
-  body { font: 15px system-ui, sans-serif; max-width: 640px; margin: 60px auto; padding: 0 20px; color: #222; }
-  input, textarea { width: 100%; box-sizing: border-box; padding: 10px; border-radius: 6px; border: 1px solid #ccc; }
-  button { margin-top: 8px; padding: 10px 18px; border: 0; border-radius: 6px; background: #1a56db; color: #fff; cursor: pointer; }
-  .antwoord { margin-top: 20px; padding: 14px; background: #f4f6f8; border-radius: 8px; white-space: pre-wrap; }
-  .hint { color: #777; font-size: 13px; }
+  :root {
+    --bg-primary: #0f172a;
+    --bg-secondary: #1e293b;
+    --bg-tertiary: #334155;
+    --bg-card: #475569;
+    --text-primary: #f1f5f9;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+    --accent: #3b82f6;
+    --accent-hover: #2563eb;
+    --accent-light: rgba(59, 130, 246, 0.15);
+    --success: #22c55e;
+    --error: #ef4444;
+    --warning: #f59e0b;
+    --border: #334155;
+    --shadow: rgba(0, 0, 0, 0.3);
+    --radius: 12px;
+    --radius-sm: 8px;
+    --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  body {
+    font: 15px 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    line-height: 1.6;
+  }
+
+  /* Header */
+  .header {
+    background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
+    padding: 2rem 2rem 4rem;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: radial-gradient(circle at 20% 50%, rgba(59, 130, 246, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 50%, rgba(16, 185, 129, 0.1) 0%, transparent 50%);
+    pointer-events: none;
+  }
+
+  .logo {
+    position: relative;
+    z-index: 1;
+  }
+
+  .logo i {
+    font-size: 3rem;
+    color: var(--accent);
+    text-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+    animation: float 3s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-5px); }
+  }
+
+  .header h1 {
+    font-size: 2rem;
+    margin-top: 1rem;
+    background: linear-gradient(135deg, var(--text-primary) 0%, var(--accent) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    position: relative;
+    z-index: 1;
+  }
+
+  .header p {
+    color: var(--text-secondary);
+    margin-top: 0.5rem;
+    font-size: 1.1rem;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Main Container */
+  .container {
+    max-width: 800px;
+    margin: -2rem auto 0;
+    padding: 0 1rem 2rem;
+    width: 100%;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Chat Card */
+  .chat-card {
+    background: var(--bg-card);
+    border-radius: var(--radius);
+    padding: 2rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 4px 6px var(--shadow);
+    border: 1px solid var(--border);
+    transition: var(--transition);
+  }
+
+  .chat-card:hover {
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+  }
+
+  .chat-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .chat-icon {
+    width: 48px;
+    height: 48px;
+    background: var(--accent-light);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent);
+    font-size: 1.5rem;
+  }
+
+  .chat-info h2 {
+    font-size: 1.25rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .chat-info p {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+  }
+
+  /* Status Indicator */
+  .status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    margin-left: auto;
+  }
+
+  .status.online {
+    background: rgba(34, 197, 94, 0.15);
+    color: var(--success);
+  }
+
+  .status.offline {
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--error);
+  }
+
+  .status i {
+    font-size: 0.75rem;
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  /* Input Area */
+  .input-area {
+    display: flex;
+    gap: 1rem;
+    margin-top: auto;
+  }
+
+  .prompt-container {
+    flex: 1;
+    position: relative;
+  }
+
+  .prompt-container textarea {
+    width: 100%;
+    min-height: 56px;
+    padding: 1rem;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text-primary);
+    font-size: 1rem;
+    resize: vertical;
+    max-height: 200px;
+    transition: var(--transition);
+    font-family: inherit;
+  }
+
+  .prompt-container textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-light);
+  }
+
+  .prompt-container textarea::placeholder {
+    color: var(--text-muted);
+  }
+
+  .char-count {
+    position: absolute;
+    right: 1rem;
+    bottom: 0.5rem;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+  }
+
+  .char-count.warning {
+    color: var(--warning);
+  }
+
+  .char-count.error {
+    color: var(--error);
+  }
+
+  .send-button {
+    align-self: flex-end;
+    padding: 1rem 1.5rem;
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-hover) 100%);
+    color: white;
+    border: none;
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 600;
+    transition: var(--transition);
+    box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+    min-width: 120px;
+  }
+
+  .send-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+  }
+
+  .send-button:active {
+    transform: translateY(0);
+  }
+
+  .send-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .send-button i {
+    margin-right: 0.5rem;
+  }
+
+  /* Response Area */
+  .response-area {
+    margin-top: 1.5rem;
+    min-height: 100px;
+  }
+
+  .response-card {
+    background: var(--bg-tertiary);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    border: 1px solid var(--border);
+    animation: fadeIn 0.3s ease;
+    position: relative;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .response-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .response-label {
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .response-meta {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+  }
+
+  .response-text {
+    white-space: pre-wrap;
+    line-height: 1.7;
+    color: var(--text-primary);
+  }
+
+  .response-text code {
+    background: var(--bg-secondary);
+    padding: 0.1rem 0.3rem;
+    border-radius: 4px;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 0.9rem;
+    color: var(--accent);
+  }
+
+  .response-text pre {
+    background: var(--bg-secondary);
+    padding: 1rem;
+    border-radius: var(--radius-sm);
+    overflow-x: auto;
+    margin: 1rem 0;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 0.9rem;
+  }
+
+  .response-text pre code {
+    background: none;
+    padding: 0;
+    color: inherit;
+  }
+
+  /* Loading States */
+  .typing-indicator {
+    display: flex;
+    gap: 4px;
+    padding: 1rem;
+  }
+
+  .typing-indicator span {
+    width: 8px;
+    height: 8px;
+    background: var(--accent);
+    border-radius: 50%;
+    animation: bounce 1.4s infinite ease-in-out;
+  }
+
+  .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
+  .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
+  .typing-indicator span:nth-child(3) { animation-delay: 0s; }
+
+  @keyframes bounce {
+    0%, 80%, 100% { transform: scale(0); }
+    40% { transform: scale(1); }
+  }
+
+  .error-message {
+    color: var(--error);
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid var(--error);
+    padding: 1rem;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .error-message i {
+    font-size: 1.25rem;
+  }
+
+  /* Suggestions */
+  .suggestions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+  }
+
+  .suggestion-chip {
+    background: var(--bg-secondary);
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: var(--transition);
+    border: 1px solid transparent;
+  }
+
+  .suggestion-chip:hover {
+    background: var(--accent-light);
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+
+  /* History */
+  .history-section {
+    margin-top: 2rem;
+  }
+
+  .history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+  }
+
+  .history-header h3 {
+    font-size: 1.1rem;
+    color: var(--text-primary);
+  }
+
+  .history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .history-item {
+    background: var(--bg-card);
+    padding: 1rem;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: var(--transition);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .history-item:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--accent);
+  }
+
+  .history-item .text {
+    flex: 1;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .history-item .timestamp {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    margin-left: 1rem;
+  }
+
+  /* Empty State */
+  .empty-state {
+    text-align: center;
+    padding: 3rem;
+    color: var(--text-muted);
+  }
+
+  .empty-state i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+  }
+
+  .empty-state h3 {
+    margin-bottom: 0.5rem;
+    color: var(--text-secondary);
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .header {
+      padding: 1.5rem 1rem 3rem;
+    }
+
+    .header h1 {
+      font-size: 1.5rem;
+    }
+
+    .header p {
+      font-size: 1rem;
+    }
+
+    .container {
+      padding: 0 0.5rem 1rem;
+    }
+
+    .chat-card {
+      padding: 1.25rem;
+    }
+
+    .input-area {
+      flex-direction: column;
+    }
+
+    .send-button {
+      width: 100%;
+      min-width: auto;
+    }
+
+    .chat-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.75rem;
+    }
+
+    .status {
+      margin-left: 0;
+      margin-top: 0.5rem;
+    }
+  }
+
+  /* Tooltip */
+  [title] {
+    position: relative;
+  }
+
+  [title]:hover::after {
+    content: attr(title);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    padding: 0.5rem 0.75rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    white-space: nowrap;
+    z-index: 100;
+    box-shadow: 0 4px 12px var(--shadow);
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--bg-tertiary);
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--border);
+  }
 </style>
 </head>
 <body>
-  <h1>Newly — browser-in-browser (fase 5)</h1>
-  <p class="hint">Stub. De webversie praat straks met de LLM-gateway en de server-side
-  tekstproxy op de sync-server (willekeurige sites iframen blokkeert X-Frame-Options,
-  dus pagina's worden via de proxy gerenderd).</p>
+  <div class="header">
+    <div class="logo">
+      <i class="fas fa-robot"></i>
+    </div>
+    <h1>Newly AI Assistent</h1>
+    <p>Stel vragen aan je lokale AI-gateway. De gateway draait op <code>http://localhost:8766</code></p>
+  </div>
 
-  <h3>AI-assistent (gateway draait op http://localhost:8766)</h3>
-  <textarea id="prompt" rows="3" placeholder="Bijv: leg uit wat agent-MCP is"></textarea>
-  <button onclick="vraag()">Vraag</button>
-  <div class="antwoord" id="antwoord"></div>
+  <div class="container">
+    <div class="chat-card">
+      <div class="chat-header">
+        <div class="chat-icon">
+          <i class="fas fa-comments"></i>
+        </div>
+        <div class="chat-info">
+          <h2>Chat met Newly</h2>
+          <p>De AI-assistent die verbonden is met je browser</p>
+        </div>
+        <div class="status online" id="gateway-status">
+          <i class="fas fa-circle"></i>
+          <span>Gateway actief</span>
+        </div>
+      </div>
+
+      <div class="response-area" id="response-area">
+        <div class="empty-state">
+          <i class="fas fa-comment-dots"></i>
+          <h3>Begin een gesprek</h3>
+          <p>Stel een vraag om te beginnen</p>
+        </div>
+      </div>
+
+      <div class="input-area">
+        <div class="prompt-container">
+          <textarea 
+            id="prompt" 
+            rows="1" 
+            placeholder="Bijvoorbeeld: leg uit wat agent-MCP is, of vraag om een samenvatting van een webpage..."
+            maxlength="2000"
+          ></textarea>
+          <div class="char-count" id="char-count">0 / 2000</div>
+        </div>
+        <button class="send-button" id="send-button" onclick="vraag()">
+          <i class="fas fa-paper-plane"></i>
+          Verzenden
+        </button>
+      </div>
+
+      <div class="suggestions">
+        <div class="suggestion-chip" onclick="setPrompt('Leg uit wat agent-MCP is')">
+          <i class="fas fa-info-circle"></i> Leg uit wat agent-MCP is
+        </div>
+        <div class="suggestion-chip" onclick="setPrompt('Hoe werkt de sync-server?')">
+          <i class="fas fa-server"></i> Hoe werkt de sync-server?
+        </div>
+        <div class="suggestion-chip" onclick="setPrompt('Maak een samenvatting van deze pagina')">
+          <i class="fas fa-file-alt"></i> Samenvatting maken
+        </div>
+      </div>
+    </div>
+
+    <div class="history-section">
+      <div class="history-header">
+        <h3>Gespreksgeschiedenis</h3>
+        <button onclick="clearHistory()" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 0.85rem;">
+          <i class="fas fa-trash"></i> Wissen
+        </button>
+      </div>
+      <div class="history-list" id="history-list">
+        <!-- History items will be added here -->
+      </div>
+    </div>
+  </div>
 
   <script>
-    async function vraag() {
-      const antwoord = document.getElementById('antwoord');
-      antwoord.textContent = 'Denkt na...';
+    const MAX_HISTORY = 50;
+    let conversationHistory = JSON.parse(localStorage.getItem('newlyHistory') || '[]');
+
+    const promptEl = document.getElementById('prompt');
+    const responseAreaEl = document.getElementById('response-area');
+    const charCountEl = document.getElementById('char-count');
+    const sendButtonEl = document.getElementById('send-button');
+    const gatewayStatusEl = document.getElementById('gateway-status');
+    const historyListEl = document.getElementById('history-list');
+
+    // Auto-resize textarea
+    promptEl.addEventListener('input', function() {
+      this.style.height = 'auto';
+      this.style.height = Math.min(this.scrollHeight, 200) + 'px';
+      updateCharCount();
+    });
+
+    function updateCharCount() {
+      const count = promptEl.value.length;
+      const max = 2000;
+      charCountEl.textContent = count + ' / ' + max;
+      
+      if (count > max * 0.8) {
+        charCountEl.classList.add('warning');
+        charCountEl.classList.remove('error');
+      } else if (count > max) {
+        charCountEl.classList.add('error');
+        charCountEl.classList.remove('warning');
+      } else {
+        charCountEl.classList.remove('warning', 'error');
+      }
+      
+      sendButtonEl.disabled = count === 0 || count > max;
+    }
+
+    // Check gateway status
+    async function checkGateway() {
       try {
-        const res = await fetch('http://localhost:8766/ask', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt: document.getElementById('prompt').value })
+        const res = await fetch('http://localhost:8766/health', { 
+          method: 'GET',
+          cache: 'no-store'
         });
-        const data = await res.json();
-        antwoord.textContent = data.answer || data.error || JSON.stringify(data);
+        if (res.ok) {
+          gatewayStatusEl.className = 'status online';
+          gatewayStatusEl.innerHTML = '<i class="fas fa-circle"></i><span>Gateway actief</span>';
+          return true;
+        }
       } catch (err) {
-        antwoord.textContent = 'Gateway niet bereikbaar: ' + err;
+        // Gateway not running
+      }
+      gatewayStatusEl.className = 'status offline';
+      gatewayStatusEl.innerHTML = '<i class="fas fa-circle"></i><span>Gateway niet actief</span>';
+      return false;
+    }
+
+    // Initial check
+    checkGateway();
+    
+    // Periodically check gateway
+    setInterval(checkGateway, 30000);
+
+    // Load history
+    function renderHistory() {
+      historyListEl.innerHTML = '';
+      conversationHistory.slice().reverse().forEach((item, index) => {
+        const actualIndex = conversationHistory.length - 1 - index;
+        const div = document.createElement('div');
+        div.className = 'history-item';
+        div.onclick = () => loadFromHistory(actualIndex);
+        div.innerHTML = `
+          <span class="text">${item.prompt.substring(0, 50)}${item.prompt.length > 50 ? '...' : ''}</span>
+          <span class="timestamp">${new Date(item.timestamp).toLocaleTimeString('nl-NL')}</span>
+        `;
+        historyListEl.appendChild(div);
+      });
+    }
+
+    function loadFromHistory(index) {
+      const item = conversationHistory[index];
+      promptEl.value = item.prompt;
+      updateCharCount();
+      promptEl.focus();
+    }
+
+    function addToHistory(prompt, response) {
+      conversationHistory.unshift({
+        prompt: prompt,
+        response: response,
+        timestamp: new Date().toISOString()
+      });
+      
+      if (conversationHistory.length > MAX_HISTORY) {
+        conversationHistory = conversationHistory.slice(0, MAX_HISTORY);
+      }
+      
+      localStorage.setItem('newlyHistory', JSON.stringify(conversationHistory));
+      renderHistory();
+    }
+
+    function clearHistory() {
+      if (confirm('Weet je zeker dat je de gespreksgeschiedenis wilt wissen?')) {
+        conversationHistory = [];
+        localStorage.setItem('newlyHistory', JSON.stringify(conversationHistory));
+        renderHistory();
       }
     }
+
+    function setPrompt(text) {
+      promptEl.value = text;
+      updateCharCount();
+      promptEl.focus();
+    }
+
+    async function vraag() {
+      const prompt = promptEl.value.trim();
+      if (!prompt || prompt.length > 2000) return;
+
+      // Clear suggestions on mobile
+      if (window.innerWidth <= 768) {
+        document.querySelector('.suggestions').style.display = 'none';
+      }
+
+      // Show loading
+      responseAreaEl.innerHTML = '
+        <div class="response-card">
+          <div class="response-header">
+            <span class="response-label">Newly denkt na...</span>
+          </div>
+          <div class="typing-indicator">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+        </div>
+      ';
+
+      // Scroll to response
+      responseAreaEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+      const sendButton = document.getElementById('send-button');
+      const originalText = sendButton.innerHTML;
+      sendButton.disabled = true;
+      sendButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Wachten...';
+
+      try {
+        const isGatewayActive = await checkGateway();
+        if (!isGatewayActive) {
+          throw new Error('Gateway niet bereikbaar op http://localhost:8766');
+        }
+
+        const res = await fetch('http://localhost:8766/ask', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({ 
+            prompt: prompt,
+            stream: false
+          })
+        });
+
+        if (!res.ok) {
+          throw new Error('Gateway returned error: ' + res.status);
+        }
+
+        const data = await res.json();
+        
+        // Format response
+        const answer = data.answer || data.response || data.error || JSON.stringify(data);
+        
+        responseAreaEl.innerHTML = `
+          <div class="response-card">
+            <div class="response-header">
+              <span class="response-label">Newly</span>
+              <div class="response-meta">
+                <span>${new Date().toLocaleTimeString('nl-NL')}</span>
+              </div>
+            </div>
+            <div class="response-text">${formatResponse(answer)}</div>
+          </div>
+        `;
+
+        // Add to history
+        addToHistory(prompt, answer);
+
+      } catch (err) {
+        responseAreaEl.innerHTML = `
+          <div class="error-message">
+            <i class="fas fa-exclamation-triangle"></i>
+            <span><strong>Fout:</strong> ${err.message}</span>
+          </div>
+        `;
+      } finally {
+        sendButton.disabled = false;
+        sendButton.innerHTML = originalText;
+        promptEl.value = '';
+        updateCharCount();
+        promptEl.style.height = 'auto';
+      }
+    }
+
+    function formatResponse(text) {
+      // Escape HTML
+      let formatted = text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+      
+      // Format code blocks
+      formatted = formatted.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
+      
+      // Format inline code
+      formatted = formatted.replace(/`([^`]+)`/g, '<code>$1</code>');
+      
+      // Format bold
+      formatted = formatted.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+      
+      // Format italic
+      formatted = formatted.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+      
+      // Format line breaks
+      formatted = formatted.replace(/\n/g, '<br>');
+      
+      return formatted;
+    }
+
+    // Allow Enter to send (Shift+Enter for new line)
+    promptEl.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        vraag();
+      }
+    });
+
+    // Initial render
+    renderHistory();
+    updateCharCount();
+
+    // Focus prompt on load
+    promptEl.focus();
   </script>
 </body>
 </html>
