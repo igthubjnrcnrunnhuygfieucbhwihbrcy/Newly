@@ -2,7 +2,7 @@
 <html lang="nl">
 <head>
 <meta charset="utf-8">
-<title>Newly</title>
+<title>Newly  Eigen Browser</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
   :root {
@@ -18,6 +18,9 @@
     --shadow: rgba(0, 0, 0, 0.3);
     --radius: 8px;
     --transition: all 0.2s ease;
+    --success: #22c55e;
+    --warning: #f59e0b;
+    --error: #ef4444;
   }
 
   * {
@@ -77,6 +80,7 @@
     transition: var(--transition);
     border: 1px solid transparent;
     border-bottom: 1px solid var(--bg-tertiary);
+    height: 28px;
   }
 
   .tab:hover {
@@ -96,6 +100,7 @@
     transition: var(--transition);
     padding: 0 4px;
     border-radius: 3px;
+    line-height: 1;
   }
 
   .tab-close:hover {
@@ -106,6 +111,10 @@
   .tab-icon {
     font-size: 12px;
     color: var(--text-secondary);
+  }
+
+  .tab.active .tab-icon {
+    color: var(--accent);
   }
 
   /* Toolbar */
@@ -189,6 +198,29 @@
     color: inherit;
   }
 
+  /* Settings Button */
+  #settings-button {
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 8px 12px;
+    cursor: pointer;
+    transition: var(--transition);
+    font-size: 14px;
+    min-width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  #settings-button:hover {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border-color: var(--accent);
+  }
+
   /* Main Content */
   #content {
     flex: 1;
@@ -247,7 +279,7 @@
 
   .context-menu-item.danger:hover {
     background: rgba(239, 68, 68, 0.15);
-    color: #ef4444;
+    color: var(--error);
   }
 
   /* Loading Indicator */
@@ -308,6 +340,249 @@
     z-index: 100;
     box-shadow: 0 4px 12px var(--shadow);
   }
+
+  /* Settings Panel */
+  #settings-panel {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    min-width: 400px;
+    max-width: 600px;
+    max-height: 80vh;
+    overflow-y: auto;
+    z-index: 2000;
+    display: none;
+    box-shadow: 0 16px 48px var(--shadow);
+  }
+
+  #settings-panel.show {
+    display: block;
+  }
+
+  #settings-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  #settings-header h2 {
+    font-size: 18px;
+    color: var(--text-primary);
+  }
+
+  #settings-close {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 20px;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: var(--transition);
+  }
+
+  #settings-close:hover {
+    color: var(--error);
+    background: rgba(239, 68, 68, 0.1);
+  }
+
+  .settings-section {
+    margin-bottom: 20px;
+  }
+
+  .settings-section h3 {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .settings-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .settings-row label {
+    flex: 0 0 120px;
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+
+  .settings-row input,
+  .settings-row select {
+    flex: 1;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 8px 12px;
+    color: var(--text-primary);
+    font-size: 13px;
+    outline: none;
+    transition: var(--transition);
+  }
+
+  .settings-row input:focus,
+  .settings-row select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent-light);
+  }
+
+  .settings-row input::placeholder {
+    color: var(--text-secondary);
+  }
+
+  .settings-row button {
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: var(--radius);
+    padding: 8px 16px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: var(--transition);
+  }
+
+  .settings-row button:hover {
+    background: var(--accent-hover);
+  }
+
+  .settings-row button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* Provider Settings */
+  .provider-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius);
+    margin-bottom: 8px;
+  }
+
+  .provider-logo {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    flex: 0 0 32px;
+  }
+
+  .provider-mistral { background: #1a56db; color: white; }
+  .provider-openai { background: #000000; color: white; }
+  .provider-anthropic { background: #000000; color: white; }
+  .provider-google { background: #4285f4; color: white; }
+  .provider-groq { background: #000000; color: white; }
+  .provider-perplexity { background: #000000; color: white; }
+  .provider-cohere { background: #3b82f6; color: white; }
+
+  .provider-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .provider-name {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+  }
+
+  .provider-status {
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+
+  .provider-status.has-key {
+    color: var(--success);
+  }
+
+  .provider-actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  .provider-actions button {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+
+  .provider-actions .btn-add {
+    background: var(--success);
+  }
+
+  .provider-actions .btn-remove {
+    background: var(--error);
+  }
+
+  /* Modal Overlay */
+  #modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1999;
+    display: none;
+  }
+
+  #modal-overlay.show {
+    display: block;
+  }
+
+  /* Toast Notification */
+  #toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 24px;
+    color: var(--text-primary);
+    font-size: 13px;
+    z-index: 3000;
+    box-shadow: 0 8px 24px var(--shadow);
+    display: none;
+    animation: slideUp 0.3s ease;
+  }
+
+  #toast.show {
+    display: block;
+  }
+
+  #toast.success {
+    border-color: var(--success);
+  }
+
+  #toast.error {
+    border-color: var(--error);
+  }
+
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateX(-50%) translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+  }
 </style>
 </head>
 <body>
@@ -320,7 +595,7 @@
     <button id="go" title="Ga"><i class="fas fa-arrow-right"></i></button>
     <button id="new" title="Nieuwe tab"><i class="fas fa-plus"></i></button>
     <button id="ai-button" title="AI-assistent"><i class="fas fa-robot"></i></button>
-    <button id="menu" title="Menu"><i class="fas fa-bars"></i></button>
+    <button id="settings-button" title="Instellingen"><i class="fas fa-cog"></i></button>
   </div>
   <div id="content"></div>
   <div id="status">
@@ -348,12 +623,123 @@
     </div>
   </div>
 
+  <!-- Settings Panel -->
+  <div id="modal-overlay" onclick="closeSettings()"></div>
+  <div id="settings-panel">
+    <div id="settings-header">
+      <h2><i class="fas fa-cog"></i> Instellingen</h2>
+      <button id="settings-close" onclick="closeSettings()">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    
+    <div class="settings-section">
+      <h3>AI Provider</h3>
+      <div id="providers-list">
+        <!-- Providers will be loaded here -->
+      </div>
+    </div>
+    
+    <div class="settings-section">
+      <h3>Algemene Instellingen</h3>
+      <div class="settings-row">
+        <label for="default-provider">Standaard Provider:</label>
+        <select id="default-provider">
+          <option value="mistral">Mistral AI</option>
+          <option value="openai">OpenAI</option>
+          <option value="anthropic">Anthropic</option>
+          <option value="google">Google Gemini</option>
+          <option value="groq">Groq</option>
+          <option value="perplexity">Perplexity</option>
+          <option value="cohere">Cohere</option>
+        </select>
+      </div>
+      <div class="settings-row">
+        <label for="default-model">Model:</label>
+        <select id="default-model">
+          <!-- Will be populated based on selected provider -->
+        </select>
+      </div>
+    </div>
+    
+    <div class="settings-section">
+      <div class="settings-row">
+        <button onclick="saveSettings()">
+          <i class="fas fa-save"></i> Opslaan
+        </button>
+        <button onclick="closeSettings()" style="background: var(--bg-tertiary); color: var(--text-secondary);">
+          <i class="fas fa-times"></i> Annuleren
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast"></div>
+
   <script>
     const api = window.nieuw;
     const tabsEl = document.getElementById('tabs');
     const urlEl = document.getElementById('url');
     const tabContextMenu = document.getElementById('tab-context-menu');
+    const settingsPanel = document.getElementById('settings-panel');
+    const modalOverlay = document.getElementById('modal-overlay');
+    const toastEl = document.getElementById('toast');
     let contextMenuTabIndex = -1;
+
+    // Settings state
+    let settings = {
+      defaultProvider: localStorage.getItem('newly_default_provider') || 'mistral',
+      defaultModel: localStorage.getItem('newly_default_model') || 'mistral-small-latest'
+    };
+
+    // Provider configurations
+    const providers = {
+      mistral: {
+        name: 'Mistral AI',
+        logo: 'fa-robot',
+        models: ['mistral-tiny', 'mistral-small', 'mistral-medium', 'mistral-large', 
+                 'mistral-small-latest', 'mistral-medium-latest', 'mistral-large-latest',
+                 'mixtral-8x7b', 'mixtral-8x22b', 'codestral-latest']
+      },
+      openai: {
+        name: 'OpenAI',
+        logo: 'fa-brain',
+        models: ['gpt-4o-mini', 'gpt-4o', 'gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo', 
+                 'gpt-3.5-turbo-16k', 'gpt-3.5-turbo-instruct']
+      },
+      anthropic: {
+        name: 'Anthropic',
+        logo: 'fa-star',
+        models: ['claude-3-5-sonnet-20241022', 'claude-3-haiku-20240307', 
+                 'claude-3-sonnet-20240229', 'claude-3-opus-20240229',
+                 'claude-2.1', 'claude-2.0', 'claude-instant-1.2']
+      },
+      google: {
+        name: 'Google Gemini',
+        logo: 'fa-gem',
+        models: ['gemini-2.0-flash', 'gemini-2.0-pro', 'gemini-1.5-flash', 
+                 'gemini-1.5-pro', 'gemini-1.0-pro', 'gemini-pro-vision']
+      },
+      groq: {
+        name: 'Groq',
+        logo: 'fa-bolt',
+        models: ['llama-3.3-70b-versatile', 'llama-3.2-90b-vision', 'llama-3.2-11b-vision',
+                 'llama3-70b-8192', 'llama3-8b-8192', 'mixtral-8x7b-32768',
+                 'gemma2-9b-it', 'gemma-7b-it']
+      },
+      perplexity: {
+        name: 'Perplexity',
+        logo: 'fa-search',
+        models: ['llama-3.3-70b-instruct', 'llama-3.1-70b-instruct', 'llama-3-70b-instruct',
+                 'mixtral-8x7b-instruct', 'sonar', 'sonar-small', 'sonar-pro']
+      },
+      cohere: {
+        name: 'Cohere',
+        logo: 'fa-cube',
+        models: ['command-r-plus', 'command-r', 'command', 'command-light']
+      }
+    };
 
     // Tab management
     api.onInfo(function (info) {
@@ -367,8 +753,16 @@
       for (let k = 0; k < info.count; k++) {
         const tab = document.createElement('div');
         tab.className = 'tab' + (k === info.active ? ' active' : '');
+        
+        // Get favicon based on URL
+        let icon = 'fa-file-alt';
+        if (info.url && info.url.includes('google')) icon = 'fa-google';
+        if (info.url && info.url.includes('github')) icon = 'fa-github';
+        if (info.url && info.url.includes('youtube')) icon = 'fa-youtube';
+        if (info.url && info.url.includes('twitter') || info.url && info.url.includes('x.com')) icon = 'fa-twitter';
+        
         tab.innerHTML = `
-          <i class="tab-icon fas fa-file-alt"></i>
+          <i class="tab-icon fas ${icon}"></i>
           <span>${info.title || 'Nieuwe tab'}</span>
           <span class="tab-close" onclick="event.stopPropagation(); closeTab(${k});">&times;</span>
         `;
@@ -395,10 +789,13 @@
       
       if (info.url && info.url.startsWith('https://')) {
         securityEl.innerHTML = '<i class="fas fa-lock" style="color: #22c55e;"></i>';
-        securityEl.title = 'Beveiligde verbinding';
+        securityEl.title = 'Beveiligde verbinding (HTTPS)';
+      } else if (info.url && info.url.startsWith('http://')) {
+        securityEl.innerHTML = '<i class="fas fa-unlock" style="color: #f59e0b;"></i>';
+        securityEl.title = 'Onbeveiligde verbinding (HTTP)';
       } else {
         securityEl.innerHTML = '<i class="fas fa-globe"></i>';
-        securityEl.title = 'Onbeveiligde verbinding';
+        securityEl.title = 'Andere verbinding';
       }
       
       pageInfoEl.textContent = info.title || '';
@@ -433,8 +830,13 @@
 
     // AI Button
     document.getElementById('ai-button').onclick = function () {
-      // Open AI assistant in a new tab or show modal
-      api.newTab('https://example.com/ai');
+      // Open AI assistant in a new tab
+      api.newTab('http://localhost:8767/api');
+    };
+
+    // Settings Button
+    document.getElementById('settings-button').onclick = function () {
+      openSettings();
     };
 
     // Context Menu
@@ -467,13 +869,15 @@
     }
 
     function duplicateTab() {
-      // For now, just create a new tab
-      api.newTab(null);
+      const activeEl = document.querySelector('.tab.active');
+      if (activeEl) {
+        const index = Array.from(tabsEl.children).indexOf(activeEl);
+        api.newTab(null);
+      }
       hideContextMenu();
     }
 
     function closeOtherTabs() {
-      // Close all except current
       const activeEl = document.querySelector('.tab.active');
       if (activeEl) {
         const keepIndex = Array.from(tabsEl.children).indexOf(activeEl);
@@ -487,7 +891,6 @@
     }
 
     function closeAllTabs() {
-      // Keep at least one tab
       while (tabsEl.children.length > 1) {
         api.closeTab(0);
       }
@@ -541,7 +944,124 @@
           api.activate(prevIndex);
         }
       }
+      // Ctrl+, = settings
+      if (e.ctrlKey && e.key === ',') {
+        e.preventDefault();
+        openSettings();
+      }
     });
+
+    // Settings functions
+    function openSettings() {
+      settingsPanel.classList.add('show');
+      modalOverlay.classList.add('show');
+      loadProviderSettings();
+    }
+
+    function closeSettings() {
+      settingsPanel.classList.remove('show');
+      modalOverlay.classList.remove('show');
+    }
+
+    function loadProviderSettings() {
+      const providersList = document.getElementById('providers-list');
+      providersList.innerHTML = '';
+      
+      for (const [key, config] of Object.entries(providers)) {
+        const providerItem = document.createElement('div');
+        providerItem.className = 'provider-item';
+        
+        const hasKey = localStorage.getItem(`newly_key_${key}`) ? true : false;
+        
+        providerItem.innerHTML = `
+          <div class="provider-logo provider-${key}">
+            <i class="fas ${config.logo}"></i>
+          </div>
+          <div class="provider-info">
+            <div class="provider-name">${config.name}</div>
+            <div class="provider-status ${hasKey ? 'has-key' : ''}">
+              ${hasKey ? 'Sleutel ingesteld' : 'Geen sleutel'}
+            </div>
+          </div>
+          <div class="provider-actions">
+            <button class="btn-add" onclick="addProviderKey('${key}')">
+              <i class="fas fa-plus"></i> Sleutel
+            </button>
+            ${hasKey ? `<button class="btn-remove" onclick="removeProviderKey('${key}')">
+              <i class="fas fa-trash"></i>
+            </button>` : ''}
+          </div>
+        `;
+        
+        providersList.appendChild(providerItem);
+      }
+      
+      // Load default provider and model
+      document.getElementById('default-provider').value = settings.defaultProvider;
+      updateModelList();
+    }
+
+    function updateModelList() {
+      const provider = document.getElementById('default-provider').value;
+      const modelSelect = document.getElementById('default-model');
+      
+      if (providers[provider]) {
+        modelSelect.innerHTML = '';
+        providers[provider].models.forEach(model => {
+          const option = document.createElement('option');
+          option.value = model;
+          option.textContent = model;
+          if (model === settings.defaultModel) {
+            option.selected = true;
+          }
+          modelSelect.appendChild(option);
+        });
+      }
+    }
+
+    function addProviderKey(provider) {
+      const key = prompt(`Voer API-sleutel in voor ${providers[provider].name}:`);
+      if (key && key.trim()) {
+        localStorage.setItem(`newly_key_${provider}`, key.trim());
+        showToast(`Sleutel voor ${providers[provider].name} opgeslagen`, 'success');
+        loadProviderSettings();
+      }
+    }
+
+    function removeProviderKey(provider) {
+      if (confirm(`Weet je zeker dat je de API-sleutel voor ${providers[provider].name} wilt verwijderen?`)) {
+        localStorage.removeItem(`newly_key_${provider}`);
+        showToast(`Sleutel voor ${providers[provider].name} verwijderd`, 'success');
+        loadProviderSettings();
+      }
+    }
+
+    function saveSettings() {
+      settings.defaultProvider = document.getElementById('default-provider').value;
+      settings.defaultModel = document.getElementById('default-model').value;
+      
+      localStorage.setItem('newly_default_provider', settings.defaultProvider);
+      localStorage.setItem('newly_default_model', settings.defaultModel);
+      
+      showToast('Instellingen opgeslagen', 'success');
+      closeSettings();
+    }
+
+    function showToast(message, type = '') {
+      toastEl.textContent = message;
+      toastEl.className = 'show';
+      if (type) {
+        toastEl.classList.add(type);
+      }
+      
+      setTimeout(() => {
+        toastEl.classList.remove('show');
+        toastEl.className = '';
+      }, 3000);
+    }
+
+    // Initialize
+    document.getElementById('default-provider').addEventListener('change', updateModelList);
   </script>
 </body>
 </html>
