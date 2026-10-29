@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""ZelfSync + Newly browser-in-browser (Raspberry Pi 5). Versie 0.9.
+"""ZelfSync + Nieuwsearch browser-in-browser (Raspberry Pi 5). Versie 0.9.
 
 Taken:
 1. Sync-server: accounts, bladwijzers, geschiedenis (SQLite).
 2. Browser-in-browser op http://pi-adres:8765/ :
    - Tabbladen, terug/vooruit, volledige en veilige weergave
-   - Nieuwsearch: de eigen zoekmachine van Newly (eigen index op de Pi,
+   - Nieuwsearch: de eigen zoekmachine van Nieuwsearch (eigen index op de Pi,
      bladwijzers/geschiedenis, Wikipedia nl, webadres-radiging)
    - AI-assistent via je eigen Mistral API-sleutel, opgeslagen op de Pi
 3. Volledige proxy-engine: ALLE bronnen lopen via de Pi, met ABSOLUUT
@@ -16,7 +16,7 @@ Taken:
 5. Knop "Echte browser": echte Chromium op de Pi via schermdeling
    (poort 6080, zie install-pi.sh). Daar werkt alles.
 
-Start:      python3 server.py      (poort 8765, of ZELFSYNC_PORT=...)
+Start:      python3 server.py      (poort 8765, of CLIMORA_PORT=...)
 Service:    zie install-pi.sh (systemd)
 """
 import gzip
@@ -39,24 +39,24 @@ DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 KEY_PATH = DB_PATH.parent / "data" / "apikey.txt"
 MAX_BODY = 1_000_000
 MAX_PAGE = 6 * 1024 * 1024
-PORT = int(os.environ.get("ZELFSYNC_PORT", "8765"))
+PORT = int(os.environ.get("CLIMORA_PORT", "8765"))
 LLM_MODEL = os.environ.get("LLM_MODEL", "mistral-small-latest")
 UA_STR = ("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
-          "(KHTML, like Gecko) Chrome/124.0 Safari/537.36 NewlyBrowser/0.9")
+          "(KHTML, like Gecko) Chrome/124.0 Safari/537.36 NieuwsearchBrowser/0.9")
 
 INDEX_HTML = """<!DOCTYPE html>
 <html lang="nl">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Newly</title>
+<title>Climora Search</title>
 <link rel="icon" href="data:,">
 <style>
  :root { --bg:#f4f7fb; --tekst:#182430; --balk:rgba(255,255,255,.93); --rand:#e2e9f1;
-   --vlak:#ffffff; --vlak2:#eef2f8; --invoer:#eef2f8; --subtekst:#5c6c81; --accent:#2f63e8;
+   --vlak:#ffffff; --vlak2:#eef2f8; --invoer:#eef2f8; --subtekst:#5c6c81; --accent:#1a7f37;
    --schaduw:rgba(20,40,80,.13); --fout:#b91c1c; }
  body.donker { --bg:#0e131a; --tekst:#e8edf4; --balk:rgba(14,19,26,.94); --rand:#232d3a;
-   --vlak:#151d28; --vlak2:#1c2532; --invoer:#1c2532; --subtekst:#a6b4c6; --accent:#5b8dff;
+   --vlak:#151d28; --vlak2:#1c2532; --invoer:#1c2532; --subtekst:#a6b4c6; --accent:#4ade80;
    --schaduw:rgba(0,0,0,.5); --fout:#f87171; }
  * { box-sizing: border-box; }
  body { margin: 0; font-family: -apple-system, 'Segoe UI', Roboto, system-ui, sans-serif;
@@ -168,8 +168,8 @@ INDEX_HTML = """<!DOCTYPE html>
     <input id="url" placeholder="Zoek of typ een webadres" autocomplete="off" spellcheck="false">
   </form>
   <button class="iconbtn" onclick="sla()" title="Bladwijzer (Ctrl+D)">&#9733;</button>
-  <button class="iconbtn" onclick="openDirect()" title="Openen buiten Newly">&#8599;</button>
-  <button class="iconbtn" onclick="echteModus()" title="Echte browser op de Pi: video, inloggen, alles werkt daar">&#128250;</button>
+  <button class="iconbtn" onclick="openDirect()" title="Openen buiten Climora Search">&#8599;</button>
+  <button class="iconbtn" onclick="echteModus()" title="Climora Weather">&#9728;</button>
   <button class="iconbtn" onclick="aiPanel()" title="AI-assistent">&#129302;</button>
   <button class="iconbtn th" onclick="thema()" title="Licht/donker">&#9788;</button>
   <button class="iconbtn" onclick="menu()" title="Menu">&#9776;</button>
@@ -182,14 +182,18 @@ INDEX_HTML = """<!DOCTYPE html>
 
 <div id="content">
   <div id="start">
-    <div class="logo">New<b>l</b>y</div>
+    <div class="logo">Climora</div>
     <form class="zoek" onsubmit="return ga2()">
       <input id="url2" placeholder="Zoek op het web of typ een adres" autocomplete="off" spellcheck="false">
       <button type="submit">Ga</button>
     </form>
     <div id="results"></div>
-    <div class="tegels" id="tegels"></div>
-    <div class="hint">Jouw eigen browser, op jouw eigen Pi.<br>Nieuwsearch zoekt in je eigen index en in Wikipedia. De Tv-knop hierboven opent de echte Chromium op de Pi: daar werkt alles, ook video.</div>
+    <div class="tegels" id="tegels"><div class="tegel" onclick="window.open('https://climoraweather.base44.app', '_blank')" title="Climora Weather">
+    <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAiIGhlaWdodD0iMzAiIHZpZXdCb3g9IjAgMCAzMCAzMCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDJMMTMuMDkgMTRMMTUgMTJMMTMuMDkgOEwzIDE0TDEyIDJMOSAzMEwxMy4wOSA0MEwxNSA0OEwxMy4wOSA1NkwyMCA0OEwxMy4wOSA2NFoiIGZpbGw9IiMxYTdmMzciLz4KPC9zdmc+" alt="Weather">
+    <div class="nm">Weer</div>
+  </div>
+    </div>
+    <div class="hint">Jouw Climora Browser, op jouw eigen Pi.<br>Climora Search zoekt in je eigen index en in Wikipedia. De Tv-knop hierboven opent de echte Chromium op de Pi: daar werkt alles, ook video.</div>
   </div>
 </div>
 
@@ -198,7 +202,7 @@ INDEX_HTML = """<!DOCTYPE html>
 <div id="toast"></div>
 
 <script>
-var token = localStorage.getItem('zelfsync_token') || '';
+var token = localStorage.getItem('climora_token') || '';
 var mode = localStorage.getItem('nieuwly_mode') || 'volledig';
 var themaStand = localStorage.getItem('nieuwly_thema') || 'licht';
 var tabs = [];
@@ -355,7 +359,7 @@ function naarStart() {
   document.getElementById('results').style.display = 'none';
   document.getElementById('tegels').style.display = 'grid';
   document.getElementById('url').value = '';
-  document.title = 'Newly';
+  document.title = 'Climora Search';
   laadTegels();
   renderTabs();
 }
@@ -387,7 +391,7 @@ function openDirect() {
 }
 
 function echteModus() {
-  var u = 'http://' + location.hostname + ':6080/vnc.html?autoconnect=true&resize=scale';
+  var u = 'https://climoraweather.base44.app'?autoconnect=true&resize=scale';
   window.open(u, '_blank');
 }
 
@@ -450,7 +454,7 @@ function toonResultaten(q) {
   r.style.display = 'block';
   r.innerHTML = '';
   var h = document.createElement('h2');
-  h.textContent = 'Nieuwsearch-resultaten voor "' + q + '"';
+  h.textContent = 'Climora Search-resultaten voor "' + q + '"';
   r.appendChild(h);
   laadbalk();
   var kop = token ? { 'Authorization': 'Bearer ' + token } : {};
@@ -592,7 +596,7 @@ function laadBladwijzers(p, kop) {
 
 function uitloggen() {
   token = '';
-  localStorage.removeItem('zelfsync_token');
+  localStorage.removeItem('climora_token');
   document.getElementById('panel').style.display = 'none';
   toast('Uitgelogd');
   laadTegels();
@@ -609,7 +613,7 @@ function stuur(route) {
     .then(function (d) {
       if (d.token) {
         token = d.token;
-        localStorage.setItem('zelfsync_token', token);
+        localStorage.setItem('climora_token', token);
         toast('Ingelogd');
         menu();
         laadTegels();
@@ -860,9 +864,9 @@ FOUT_PAGINA = (
     "<p style='font-size:14px'>Sommige sites blokkeren weergave in een omlijst kader of "
     "beschermen zich tegen servers die pagina's ophalen. "
     "Gebruik de Tv-knop hierboven: de echte browser op de Pi kan vrijwel alles.</p>"
-    "<p><a href='__URL__' target='_blank' rel='noopener'>Openen buiten Newly</a> &nbsp;|&nbsp; "
+    "<p><a href='__URL__' target='_blank' rel='noopener'>Openen buiten Nieuwsearch</a> &nbsp;|&nbsp; "
     "<a href='/browse?url=__URL_Q__&amp;mode=veilig'>Opnieuw in veilige modus</a></p>"
-    "<p style='margin-top:40px'><a href='/'>Terug naar Newly</a></p></div>")
+    "<p style='margin-top:40px'><a href='/'>Terug naar Nieuwsearch</a></p></div>")
 
 
 # ---------- advertentieblokkering op de Pi zelf ----------
@@ -1021,7 +1025,7 @@ SHIM_TEMPLATE = (
 
 
 def bewerk_html(text, final_url, mode, status, oorsprong=""):
-    """HTML toonbaar maken binnen Newly: alle bronnen lopen via de Pi.
+    """HTML toonbaar maken binnen Nieuwsearch: alle bronnen lopen via de Pi.
 
     oorsprong = ons eigen adres (http://pi-ip:poort). Alle herschreven
     links worden absoluut, anders lost de <base>-tag van de site ze op
@@ -1067,7 +1071,7 @@ def bewerk_html(text, final_url, mode, status, oorsprong=""):
     return text, base
 
 
-# ---------- Nieuwsearch: de eigen zoekmachine van Newly ----------
+# ---------- Nieuwsearch: de eigen zoekmachine van Nieuwsearch ----------
 def index_zoek(q, user_id=None):
     """Zoeken in de eigen index op de Pi en in bladwijzers/geschiedenis."""
     schoon = re.sub(r"[%_\\]", " ", q.lower()).strip()
@@ -1081,7 +1085,7 @@ def index_zoek(q, user_id=None):
                 "SELECT url, title FROM pages WHERE lower(title) LIKE ? OR lower(tekst) LIKE ? "
                 "ORDER BY updated DESC LIMIT 8", (term, term)).fetchall():
             resultaten.append({"title": titel or url, "url": url,
-                               "snippet": "Gevonden in je eigen Newly-index op de Pi.",
+                               "snippet": "Gevonden in je eigen Nieuwsearch-index op de Pi.",
                                "bron": "eigen index"})
         eigen = []
         if user_id:
@@ -1205,7 +1209,7 @@ def ai_vraag(prompt, page_url):
     if not key:
         return {"error": "Nog geen API-sleutel ingesteld (menu > AI)"}
     messages = [{"role": "system",
-                 "content": "Je bent de AI-assistent van de Newly-browser. "
+                 "content": "Je bent de AI-assistent van de Nieuwsearch-browser. "
                             "Antwoord kort en in de taal van de gebruiker."}]
     if page_url:
         try:
@@ -1227,7 +1231,7 @@ def ai_vraag(prompt, page_url):
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "ZelfSync/0.9"
+    server_version = "Climora/1.0"
 
     # ---------- helpers ----------
     def send_json(self, code, obj):
@@ -1375,7 +1379,7 @@ class Handler(BaseHTTPRequestHandler):
             if not target.startswith(("http://", "https://")):
                 self.send_html(400,
                                "<h3 style='font-family:system-ui'>Ongeldig adres</h3>"
-                               "<p><a href='/'>Terug naar Newly</a></p>")
+                               "<p><a href='/'>Terug naar Nieuwsearch</a></p>")
                 return
             self.dien_pagina(target, mode)
             return
@@ -1575,7 +1579,7 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main():
-    print("ZelfSync + Newly browser-in-browser draait op poort %d" % PORT)
+    print("ZelfSync + Nieuwsearch browser-in-browser draait op poort %d" % PORT)
     print("Open in een browser op hetzelfde netwerk: http://<pi-adres>:%d/" % PORT)
     print("Nieuwsearch zoekt in je eigen index, Wikipedia (nl) en raadt webadressen.")
     print("Volledige proxy + advertentieblokkering aan. Tv-knop opent de echte Chromium (poort 6080).")

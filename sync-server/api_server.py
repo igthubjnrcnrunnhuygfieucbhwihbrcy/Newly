@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Newly API Server  Externe REST API voor Newly browser.
+"""Climora API Server  Externe REST API voor Climora browser.
 
-Deze server biedt een eigen REST API voor externe toegang tot Newly functionaliteit.
+Deze server biedt een eigen REST API voor externe toegang tot Climora functionaliteit.
 Het is bedoeld om te draaien op een Raspberry Pi of VPS en biedt:
 
 - API toegang tot browser functionaliteit
-- Integreert met ZelfSync voor bookmarks en geschiedenis
+- Integreert met Climora Sync voor bookmarks en geschiedenis
 - Kan verbinden met externe services en leveranciers
 - Beveiliging via API-sleutels
 
@@ -128,8 +128,8 @@ init_database()
 
 
 class APIHandler(BaseHTTPRequestHandler):
-    """HTTP request handler voor de Newly API."""
-    server_version = "NewlyAPI/1.0"
+    """HTTP request handler voor de Climora API."""
+    server_version = "ClimoraAPI/1.0"
 
     def log_message(self, fmt, *args):
         """Log berichten (alleen in debug mode)."""
@@ -257,9 +257,9 @@ class APIHandler(BaseHTTPRequestHandler):
             
             if path == "/":
                 self.send_json(200, {
-                    "name": "Newly API",
+                    "name": "Climora API",
                     "version": "1.0",
-                    "description": "REST API voor Newly browser functionaliteit",
+                    "description": "REST API voor Climora browser functionaliteit",
                     "endpoints": {
                         "GET /health": "Server status",
                         "GET /api": "API informatie",
@@ -291,7 +291,7 @@ class APIHandler(BaseHTTPRequestHandler):
                     return
                 
                 self.send_json(200, {
-                    "name": "Newly API",
+                    "name": "Climora API",
                     "version": "1.0",
                     "capabilities": ["bookmarks", "history", "search", "ai", "webhooks"],
                     "rate_limit": 100,
@@ -854,7 +854,7 @@ class APIHandler(BaseHTTPRequestHandler):
 def main():
     """Start de API server."""
     print("=" * 60)
-    print("Newly API Server")
+    print("Climora API Server")
     print("=" * 60)
     print(f"Server draait op poort {API_PORT}")
     print(f"Authentatie: Bearer token of X-Client-ID/X-Client-Secret")

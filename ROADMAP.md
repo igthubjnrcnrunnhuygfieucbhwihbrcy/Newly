@@ -42,7 +42,7 @@
 ## [34m🚀 Toekomstige Fases[0m
 
 ## Fase 4  Volledige Sync & Integraties (2-4 weken)
-- [ ] **Echte sync tussen apparaten** via ZelfSync
+- [ ] **Echte sync tussen apparaten** via Climora Sync
 - [ ] **Token per apparaat** voor veilige authenticatie
 - [ ] **Export/import** van bookmarks en geschiedenis
 - [ ] **Conflict resolutie** bij sync
@@ -69,7 +69,7 @@
 - [ ] **Volledige webproxy** via de Pi
 - [ ] **Advertentieblokkering** op server niveau
 - [ ] **Veilige modus** voor JavaScript-loze weergave
-- [ ] **Nieuwsearch verbeteringen**
+- [ ] **Climora Search verbeteringen**
   - [ ] **Index optimalisatie**
   - [ ] **Zoekoperators** (AND, OR, NOT, etc.)
   - [ ] **Fuzzy matching** voor typo's

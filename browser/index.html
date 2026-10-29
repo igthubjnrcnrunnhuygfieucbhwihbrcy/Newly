@@ -2,7 +2,7 @@
 <html lang="nl">
 <head>
 <meta charset="utf-8">
-<title>Newly  Eigen Browser</title>
+<title>Climora  Eigen Browser</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
   :root {
@@ -594,8 +594,14 @@
     <input id="url" placeholder="Adres of zoekterm" spellcheck="false">
     <button id="go" title="Ga"><i class="fas fa-arrow-right"></i></button>
     <button id="new" title="Nieuwe tab"><i class="fas fa-plus"></i></button>
-    <button id="ai-button" title="AI-assistent"><i class="fas fa-robot"></i></button>
-    <button id="settings-button" title="Instellingen"><i class="fas fa-cog"></i></button>
+    <button id="weather-button" title="Climora Weather" onclick="window.open('https://climoraweather.base44.app', '_blank')">
+  <i class="fas fa-cloud-sun"></i>
+</button>
+<button id="ai-button" title="AI-assistent"><i class="fas fa-robot"></i></button>
+    <button id="weather-button2" title="Climora Weather" onclick="window.open('https://climoraweather.base44.app', '_blank')" style="margin-left: auto;">
+  <i class="fas fa-cloud-sun"></i>
+</button>
+<button id="settings-button" title="Instellingen"><i class="fas fa-cog"></i></button>
   </div>
   <div id="content"></div>
   <div id="status">
@@ -689,8 +695,8 @@
 
     // Settings state
     let settings = {
-      defaultProvider: localStorage.getItem('newly_default_provider') || 'mistral',
-      defaultModel: localStorage.getItem('newly_default_model') || 'mistral-small-latest'
+      defaultProvider: localStorage.getItem('climora_default_provider') || 'mistral',
+      defaultModel: localStorage.getItem('climora_default_model') || 'mistral-small-latest'
     };
 
     // Provider configurations
@@ -779,7 +785,7 @@
     function updateUrlBar(info) {
       if (info.i === info.active) {
         urlEl.value = info.url || '';
-        document.title = (info.title || 'Newly') + ' - Newly';
+        document.title = (info.title || 'Climora') + ' - Climora';
       }
     }
 
@@ -971,7 +977,7 @@
         const providerItem = document.createElement('div');
         providerItem.className = 'provider-item';
         
-        const hasKey = localStorage.getItem(`newly_key_${key}`) ? true : false;
+        const hasKey = localStorage.getItem(`climora_key_${key}`) ? true : false;
         
         providerItem.innerHTML = `
           <div class="provider-logo provider-${key}">
@@ -1022,7 +1028,7 @@
     function addProviderKey(provider) {
       const key = prompt(`Voer API-sleutel in voor ${providers[provider].name}:`);
       if (key && key.trim()) {
-        localStorage.setItem(`newly_key_${provider}`, key.trim());
+        localStorage.setItem(`climora_key_${provider}`, key.trim());
         showToast(`Sleutel voor ${providers[provider].name} opgeslagen`, 'success');
         loadProviderSettings();
       }
@@ -1030,7 +1036,7 @@
 
     function removeProviderKey(provider) {
       if (confirm(`Weet je zeker dat je de API-sleutel voor ${providers[provider].name} wilt verwijderen?`)) {
-        localStorage.removeItem(`newly_key_${provider}`);
+        localStorage.removeItem(`climora_key_${provider}`);
         showToast(`Sleutel voor ${providers[provider].name} verwijderd`, 'success');
         loadProviderSettings();
       }
@@ -1040,8 +1046,8 @@
       settings.defaultProvider = document.getElementById('default-provider').value;
       settings.defaultModel = document.getElementById('default-model').value;
       
-      localStorage.setItem('newly_default_provider', settings.defaultProvider);
-      localStorage.setItem('newly_default_model', settings.defaultModel);
+      localStorage.setItem('climora_default_provider', settings.defaultProvider);
+      localStorage.setItem('climora_default_model', settings.defaultModel);
       
       showToast('Instellingen opgeslagen', 'success');
       closeSettings();

@@ -1,6 +1,6 @@
-# Newly  Eigen Browser met AI-Agent
+# Climora  Eigen Browser met AI-Agent
 
-**Newly** is een eigen, Chromium-gebaseerde browser met een ingebouwde AI-agent. Local-first: het browsen gebeurt volledig op de hardware van de gebruiker (laptop/telefoon). Een Raspberry Pi 5 doet optioneel de rol van sync-server  zoals Google en Brave dat voor hun browser doen, maar dan bij jou thuis.
+**Climora** is een eigen, Chromium-gebaseerde browser met een ingebouwde AI-agent. Local-first: het browsen gebeurt volledig op de hardware van de gebruiker (laptop/telefoon). Een Raspberry Pi 5 doet optioneel de rol van sync-server  zoals Google en Brave dat voor hun browser doen, maar dan bij jou thuis.
 
 ## [1mNieuwe Functionaliteit [0m
 
@@ -54,14 +54,14 @@ GET  /api/stats        Statistieken
 ```
 
 **Authentatie:**
-- **Master API Key**: `Authorization: Bearer <NEWLY_API_KEY>`
+- **Master API Key**: `Authorization: Bearer <CLIMORA_API_KEY>`
 - **Client Credentials**: `X-Client-ID` en `X-Client-Secret` headers
 
 **Start de API Server:**
 ```bash
 cd sync-server
-export NEWLY_API_KEY="jouw-geheime-sleutel"
-export NEWLY_API_PORT=8767
+export CLIMORA_API_KEY="jouw-geheime-sleutel"
+export CLIMORA_API_PORT=8767
 python3 api_server.py
 ```
 
@@ -107,7 +107,7 @@ De **web/index.html** biedt nu:
 +--------------------------------------------------------------------------------------+
                                      | optioneel: alleen sync + webproxy
                                      v
-              sync-server/  op Raspberry Pi 5  (ZelfSync: multi-user accounts,
+              sync-server/  op Raspberry Pi 5  (Climora Sync: multi-user accounts,
               bookmarks + geschiedenis, zelfde code draait later ook op een VPS)
                                      |
                                      v
@@ -119,7 +119,7 @@ De **web/index.html** biedt nu:
 - **browser/**  Electron-schil met tabs, adresbalk, AI-instellingen en CDP-agenthook
 - **agent/**  Ontwerp voor de MCP-server die de LLM toegang tot de browser geeft
 - **gateway/**  Lokale LLM-gateway met ondersteuning voor meerdere providers
-- **sync-server/**  ZelfSync: werkende multi-user sync-service + webproxy
+- **sync-server/**  Climora Sync: werkende multi-user sync-service + webproxy
 - **sync-server/api_server.py**  Eigen REST API voor externe integraties
 - **sync-server/extensions.py**  Uitbreidingen voor externe services
 - **web/**  Web-UI met AI-assistent en provider selectie
@@ -174,8 +174,8 @@ curl http://localhost:8765/health
 ```bash
 cd sync-server
 # Stel master API sleutel in
-export NEWLY_API_KEY="jouw-geheime-api-sleutel"
-export NEWLY_API_PORT=8767
+export CLIMORA_API_KEY="jouw-geheime-api-sleutel"
+export CLIMORA_API_PORT=8767
 python3 api_server.py
 
 # Test de API
@@ -184,29 +184,29 @@ curl -H "Authorization: Bearer jouw-geheime-api-sleutel" http://localhost:8767/h
 
 ## De Raspberry Pi 5 als Sync-Server
 
-ZelfSync is de "Google-server" van deze browser, maar dan van jou: kleine API-service die per gebruiker bookmarks, geschiedenis en instellingen bewaart zodat al je apparaten synchen. Dit is lichtgewicht werk (JSON-records + SQLite): een Pi 5 met SSD doet dit ruim voor honderden gebruikers. Bereik je een echt grote schaal, dan verhuist exact dezelfde code naar een VPS.
+Climora Sync is de "Google-server" van deze browser, maar dan van jou: kleine API-service die per gebruiker bookmarks, geschiedenis en instellingen bewaart zodat al je apparaten synchen. Dit is lichtgewicht werk (JSON-records + SQLite): een Pi 5 met SSD doet dit ruim voor honderden gebruikers. Bereik je een echt grote schaal, dan verhuist exact dezelfde code naar een VPS.
 
 ### Installeren als Service (systemd)
 
 ```bash
 # Voor sync-server
-sudo cp zelfsync.service /etc/systemd/system/
+sudo cp climora_sync.service /etc/systemd/system/
 sudo systemctl daemon-reload
-sudo systemctl enable --now zelfsync
+sudo systemctl enable --now climora_sync
 
 # Voor api-server (maak een nieuw service bestand)
-cat > /etc/systemd/system/newly-api.service << 'EOF'
+cat > /etc/systemd/system/climora-api.service << 'EOF'
 [Unit]
-Description=Newly API Server
+Description=Climora API Server
 After=network.target
 
 [Service]
 Type=simple
 User=pi
-WorkingDirectory=/path/to/Newly/sync-server
-ExecStart=/usr/bin/python3 /path/to/Newly/sync-server/api_server.py
-Environment=NEWLY_API_KEY=jouw-geheime-sleutel
-Environment=NEWLY_API_PORT=8767
+WorkingDirectory=/path/to/Climora/sync-server
+ExecStart=/usr/bin/python3 /path/to/Climora/sync-server/api_server.py
+Environment=CLIMORA_API_KEY=jouw-geheime-sleutel
+Environment=CLIMORA_API_PORT=8767
 Restart=always
 
 [Install]
@@ -214,7 +214,7 @@ WantedBy=multi-user.target
 EOF
 
 sudo systemctl daemon-reload
-sudo systemctl enable --now newly-api
+sudo systemctl enable --now climora-api
 ```
 
 Zet daarna port-forwarding of een reverse proxy (Caddy/nginx met HTTPS) voor bereik van buitenaf.
@@ -237,7 +237,7 @@ Zie ROADMAP.md voor de fasen 1 t/m 6.
 
 - De LLM-API-sleutel blijft op het apparaat; de gateway luistert alleen op 127.0.0.1
 - De agent krijgt per-permissie toegang tot de browser (fase 3): "wel lezen, niet klikken" moet kunnen
-- ZelfSync hasht wachtwoorden met PBKDF2 en werkt met bearer-tokens; zet er altijd TLS voor (reverse proxy)
+- Climora Sync hasht wachtwoorden met PBKDF2 en werkt met bearer-tokens; zet er altijd TLS voor (reverse proxy)
 - Logs van de gateway bevatten bewust geen prompt-inhoud
 - API-sleutels worden versleuteld opgeslagen met beperkte permissies (600)
 
@@ -370,7 +370,7 @@ curl -X POST http://localhost:8766/config/keys \
 **Probleem:** Poort in gebruik
 **Oplossing:** Kies een andere poort:
 ```bash
-export NEWLY_API_PORT=8768
+export CLIMORA_API_PORT=8768
 ```
 
 ### Database Fouten
@@ -384,7 +384,7 @@ chmod 755 sync-server/data
 
 ## Licentie
 
-Newly is open source software, gelicenseerd onder de MIT licentie.
+Climora is open source software, gelicenseerd onder de MIT licentie.
 
 ## Bijdragen
 
@@ -394,8 +394,8 @@ Bijdragen zijn welkom! Open een pull request of meld issues in de GitHub reposit
 
 ```bash
 # Clone de repository
-git clone https://github.com/igthubjnrcnrunnhuygfieucbhwihbrcy/Newly.git
-cd Newly
+git clone https://github.com/igthubjnrcnrunnhuygfieucbhwihbrcy/Climora.git
+cd Climora
 
 # Installeer afhankelijkheden
 cd browser
@@ -413,10 +413,10 @@ python3 gateway/server.py
 python3 sync-server/server.py
 
 # Terminal 4: API Server (optioneel)
-export NEWLY_API_KEY="jouw-api-sleutel"
+export CLIMORA_API_KEY="jouw-api-sleutel"
 python3 sync-server/api_server.py
 ```
 
 ## Contact
 
-Voor vragen en ondersteuning, bezoek de [GitHub repository](https://github.com/igthubjnrcnrunnhuygfieucbhwihbrcy/Newly).
+Voor vragen en ondersteuning, bezoek de [GitHub repository](https://github.com/igthubjnrcnrunnhuygfieucbhwihbrcy/Climora).

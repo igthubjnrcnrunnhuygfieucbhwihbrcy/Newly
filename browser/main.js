@@ -1,4 +1,4 @@
-// Newly — Electron-hoofdproces.
+// Climora — Electron-hoofdproces.
 // Chromium doet de rendering; dit is de schil met tabs, adresbalk en de
 // CDP-agenthook: de agent stuurt straks DevTools-commando's naar een tab.
 const { app, BrowserWindow, WebContentsView, ipcMain } = require('electron');

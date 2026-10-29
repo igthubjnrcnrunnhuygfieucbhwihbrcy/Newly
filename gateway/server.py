@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""ZelfGateway  lokale LLM-gateway voor Newly.
+"""ZelfGateway  lokale LLM-gateway voor Climora.
 
 De browser praat alleen met deze gateway (localhost); de gateway praat met de
 cloud-LLM-API met JOUW API-sleutel. Zo blijft de sleutel op het apparaat en is
@@ -358,7 +358,7 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 if route == "/ask":
                     system = str(body.get("system",
-                        "Je bent de assistent van de Newly-browser. Antwoord kort en in de taal van de gebruiker."))
+                        "Je bent de assistent van de Climora-browser. Antwoord kort en in de taal van de gebruiker."))
                     messages = [{"role": "system", "content": system}]
                     context = str(body.get("context", ""))[:MAX_PROMPT]
                     if context:

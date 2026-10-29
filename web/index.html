@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Newly  AI Assistent</title>
+<title>Climora  AI Assistent</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
   :root {
@@ -814,7 +814,7 @@
     <div class="logo">
       <i class="fas fa-robot"></i>
     </div>
-    <h1>Newly AI Assistent</h1>
+    <h1>Climora AI Assistent</h1>
     <p>Stel vragen aan je lokale AI-gateway. De gateway draait op <code>http://localhost:8766</code></p>
   </div>
 
@@ -825,7 +825,7 @@
           <i class="fas fa-comments"></i>
         </div>
         <div class="chat-info">
-          <h2>Chat met Newly</h2>
+          <h2>Chat met Climora</h2>
           <p>De AI-assistent die verbonden is met je browser</p>
         </div>
         <div class="status online" id="gateway-status">
@@ -874,6 +874,9 @@
         <div class="suggestion-chip" onclick="setPrompt('Wat zijn de nieuwe features?')">
           <i class="fas fa-sparkles"></i> Nieuwe features
         </div>
+        <div class="suggestion-chip" onclick="window.open('https://climoraweather.base44.app', '_blank')">
+  <i class="fas fa-cloud-sun"></i> Open Climora Weather
+</div>
         <div class="suggestion-chip" onclick="openSettings()">
           <i class="fas fa-cog"></i> Instellingen
         </div>
@@ -974,7 +977,7 @@
 
   <script>
     const MAX_HISTORY = 50;
-    let conversationHistory = JSON.parse(localStorage.getItem('newlyHistory') || '[]');
+    let conversationHistory = JSON.parse(localStorage.getItem('climoraHistory') || '[]');
 
     const promptEl = document.getElementById('prompt');
     const responseAreaEl = document.getElementById('response-area');
@@ -989,9 +992,9 @@
 
     // Settings state
     let settings = {
-      defaultProvider: localStorage.getItem('newly_default_provider') || 'mistral',
-      defaultModel: localStorage.getItem('newly_default_model') || 'mistral-small-latest',
-      gatewayUrl: localStorage.getItem('newly_gateway_url') || 'http://localhost:8766'
+      defaultProvider: localStorage.getItem('climora_default_provider') || 'mistral',
+      defaultModel: localStorage.getItem('climora_default_model') || 'mistral-small-latest',
+      gatewayUrl: localStorage.getItem('climora_gateway_url') || 'http://localhost:8766'
     };
 
     // Provider configurations
@@ -1182,14 +1185,14 @@
         conversationHistory = conversationHistory.slice(0, MAX_HISTORY);
       }
       
-      localStorage.setItem('newlyHistory', JSON.stringify(conversationHistory));
+      localStorage.setItem('climoraHistory', JSON.stringify(conversationHistory));
       renderHistory();
     }
 
     function clearHistory() {
       if (confirm('Weet je zeker dat je de gespreksgeschiedenis wilt wissen?')) {
         conversationHistory = [];
-        localStorage.setItem('newlyHistory', JSON.stringify(conversationHistory));
+        localStorage.setItem('climoraHistory', JSON.stringify(conversationHistory));
         renderHistory();
         showToast('Gespreksgeschiedenis gewist', 'success');
       }
@@ -1218,7 +1221,7 @@
       responseAreaEl.innerHTML = `
         <div class="response-card">
           <div class="response-header">
-            <span class="response-label">Newly (${providers[provider].name}) denkt na...</span>
+            <span class="response-label">Climora (${providers[provider].name}) denkt na...</span>
             <div class="response-meta">
               <span>${model}</span>
             </div>
@@ -1273,7 +1276,7 @@
         responseAreaEl.innerHTML = `
           <div class="response-card">
             <div class="response-header">
-              <span class="response-label">Newly (${providers[responseProvider] ? providers[responseProvider].name : responseProvider})</span>
+              <span class="response-label">Climora (${providers[responseProvider] ? providers[responseProvider].name : responseProvider})</span>
               <div class="response-meta">
                 <span>${responseModel}</span>
                 <span>${new Date().toLocaleTimeString('nl-NL')}</span>
@@ -1357,9 +1360,9 @@
       settings.defaultModel = document.getElementById('default-model').value;
       settings.gatewayUrl = document.getElementById('gateway-url').value;
       
-      localStorage.setItem('newly_default_provider', settings.defaultProvider);
-      localStorage.setItem('newly_default_model', settings.defaultModel);
-      localStorage.setItem('newly_gateway_url', settings.gatewayUrl);
+      localStorage.setItem('climora_default_provider', settings.defaultProvider);
+      localStorage.setItem('climora_default_model', settings.defaultModel);
+      localStorage.setItem('climora_gateway_url', settings.gatewayUrl);
       
       currentProvider = settings.defaultProvider;
       currentModel = settings.defaultModel;

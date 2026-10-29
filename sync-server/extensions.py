@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Newly Sync-Server Extensions  Uitbreidingen voor externe services en leveranciers.
+"""Climora Sync-Server Extensions  Uitbreidingen voor externe services en leveranciers.
 
 Deze module voegt functionaliteit toe aan de sync-server voor:
 - Integreert met externe API's en services
@@ -402,7 +402,7 @@ class WebhookManager:
                     
                     headers = {
                         "Content-Type": "application/json",
-                        "User-Agent": "Newly-Webhook/1.0"
+                        "User-Agent": "Climora-Webhook/1.0"
                     }
                     
                     if row["secret"]:
@@ -414,7 +414,7 @@ class WebhookManager:
                             json.dumps(payload).encode(),
                             hashlib.sha256
                         ).hexdigest()
-                        headers["X-Newly-Signature"] = signature
+                        headers["X-Climora-Signature"] = signature
                     
                     req = urllib.request.Request(
                         row["url"],
@@ -533,7 +533,7 @@ def get_supported_events():
 
 if __name__ == "__main__":
     # Test de extensions
-    print("Newly Sync-Server Extensions")
+    print("Climora Sync-Server Extensions")
     print("=" * 50)
     
     # Toon ondersteunde service types
