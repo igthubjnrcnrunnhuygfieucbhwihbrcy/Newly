@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Climora Sync-Server Extensions  Uitbreidingen voor externe services en leveranciers.
+"""Climora Sync-Server Extensions — Uitbreidingen voor externe services en leveranciers.
 
 Deze module voegt functionaliteit toe aan de sync-server voor:
 - Integreert met externe API's en services

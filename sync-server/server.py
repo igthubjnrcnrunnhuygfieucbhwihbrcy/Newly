@@ -22,12 +22,15 @@ Service:    zie install-pi.sh (systemd)
 import gzip
 import hashlib
 import html
+import ipaddress
 import json
 import os
 import re
 import secrets
+import socket
 import sqlite3
 import threading
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -391,7 +394,7 @@ function openDirect() {
 }
 
 function echteModus() {
-  var u = 'https://climoraweather.base44.app'?autoconnect=true&resize=scale';
+  var u = 'http://' + location.hostname + ':6080/vnc.html?autoconnect=true&resize=scale';
   window.open(u, '_blank');
 }
 
@@ -627,6 +630,12 @@ function aiPanel() {
   p.style.display = 'none';
   if (ai.style.display === 'block') { ai.style.display = 'none'; return; }
   ai.style.display = 'block';
+  if (!token) {
+    ai.innerHTML = '<h3>AI-assistent</h3>' +
+      '<div class="keuze">Log eerst in (menu) om de AI-assistent te gebruiken. ' +
+      'Zo blijft jouw API-sleutel en quota voor jou alleen.</div>';
+    return;
+  }
   fetch('/ai-status').then(function (r) { return r.json(); }).then(function (d) {
     if (d.key_set) {
       ai.innerHTML = '<h3>AI-assistent</h3>' +
@@ -646,7 +655,7 @@ function slaSleutel() {
   var k = document.getElementById('sleutel').value.trim();
   if (!k) return;
   fetch('/api-key', { method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
     body: JSON.stringify({ key: k }) })
     .then(function (r) { return r.json(); })
     .then(function (d) {
@@ -661,7 +670,7 @@ function vraagAI() {
   var uit = document.getElementById('antwoord');
   uit.textContent = 'Denkt na...';
   fetch('/ask', { method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
     body: JSON.stringify({ prompt: pr, url: tab().url || '' }) })
     .then(function (r) { return r.json(); })
     .then(function (d) {
@@ -686,6 +695,40 @@ laadTegels();
 </html>
 """
 
+# ---------- SSRF-bescherming ----------
+# De proxy mag nooit interne adressen ophalen (router, localhost-diensten,
+# cloud-metadata). We lossen de hostnaam op en weigeren private IP's.
+def is_private_host(host):
+    if not host:
+        return True
+    host = host.strip("[].").lower()
+    if host in ("localhost", "localhost.localdomain"):
+        return True
+    try:
+        infos = socket.getaddrinfo(host, None, proto=socket.IPPROTO_TCP)
+    except socket.gaierror:
+        return True
+    for info in infos:
+        try:
+            ip = ipaddress.ip_address(info[4][0])
+        except ValueError:
+            return True
+        if (ip.is_private or ip.is_loopback or ip.is_link_local
+                or ip.is_reserved or ip.is_multicast or ip.is_unspecified):
+            return True
+    return False
+
+
+def veilige_target(url):
+    """Geef True terug als de URL veilig opgehaald mag worden."""
+    delen = urllib.parse.urlsplit(url)
+    if delen.scheme not in ("http", "https"):
+        return False
+    if delen.username or delen.password:
+        return False
+    return not is_private_host(delen.hostname or "")
+
+
 def connect():
     con = sqlite3.connect(DB_PATH, timeout=10)
     con.execute("PRAGMA journal_mode=WAL")
@@ -695,7 +738,9 @@ def connect():
         "  username TEXT UNIQUE NOT NULL,"
         "  pwhash TEXT NOT NULL,"
         "  salt TEXT NOT NULL,"
-        "  token TEXT UNIQUE"
+        "  token TEXT UNIQUE,"
+        "  token_hash TEXT UNIQUE,"
+        "  token_created TEXT"
         ");"
         "CREATE TABLE IF NOT EXISTS bookmarks ("
         "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
@@ -715,9 +760,32 @@ def connect():
         "  url TEXT PRIMARY KEY,"
         "  title TEXT NOT NULL DEFAULT '',"
         "  tekst TEXT NOT NULL DEFAULT '',"
-        "  updated TEXT DEFAULT (datetime('now'))"
+        "  updated TEXT DEFAULT (datetime('now')),"
+        "  user_id INTEGER"
         ");")
+    # Migraties voor bestaande databases
+    for kolom, definitie in (("token_hash", "TEXT UNIQUE"),
+                             ("token_created", "TEXT")):
+        try:
+            con.execute(f"ALTER TABLE users ADD COLUMN {kolom} {definitie}")
+        except sqlite3.OperationalError:
+            pass
+    try:
+        con.execute("ALTER TABLE pages ADD COLUMN user_id INTEGER")
+    except sqlite3.OperationalError:
+        pass
+    # Bestaande plaintext-tokens eenmalig hashen en daarna wissen
+    rows = con.execute(
+        "SELECT id, token FROM users WHERE token_hash IS NULL AND token IS NOT NULL AND token != ''").fetchall()
+    for rid, tok in rows:
+        con.execute("UPDATE users SET token_hash = ?, token = NULL, token_created = datetime('now') WHERE id = ?",
+                    (hash_token(tok), rid))
+    con.commit()
     return con
+
+
+def hash_token(token):
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
 def hash_password(password, salt_hex):
@@ -725,19 +793,41 @@ def hash_password(password, salt_hex):
                                bytes.fromhex(salt_hex), 120_000).hex()
 
 
-# ---------- cookies (simpel, per domein, alleen in het geheugen) ----------
+# ---------- rate limiting (brute-force login/register) ----------
+POGINGEN = {}
+POGING_LOCK = threading.Lock()
+POGING_VENSTER = 300
+POGING_MAX = 10
+
+def toegestaan(sleutel, max_pogingen=POGING_MAX):
+    nu = time.time()
+    with POGING_LOCK:
+        lijst = [t for t in POGINGEN.get(sleutel, []) if nu - t < POGING_VENSTER]
+        if len(lijst) >= max_pogingen:
+            POGINGEN[sleutel] = lijst
+            return False
+        lijst.append(nu)
+        POGINGEN[sleutel] = lijst
+        if len(POGINGEN) > 10_000:
+            for k in [k for k, v in POGINGEN.items() if not v]:
+                POGINGEN.pop(k, None)
+        return True
+
+
+# ---------- cookies (per sessie, per domein, alleen in het geheugen) ----------
 KOEKJES = {}
 KOEK_LOCK = threading.Lock()
+KOEK_MAX_SESSIES = 500
 
-def koekjes_voor(host):
-    if not host:
+def koekjes_voor(sessie, host):
+    if not host or not sessie:
         return ""
     with KOEK_LOCK:
-        items = KOEKJES.get(host, {})
+        items = KOEKJES.get(sessie, {}).get(host, {})
     return "; ".join(k + "=" + v for k, v in items.items())
 
-def koekjes_opslaan(host, headers):
-    if not host or headers is None:
+def koekjes_opslaan(sessie, host, headers):
+    if not sessie or not host or headers is None:
         return
     try:
         regels = headers.get_all("Set-Cookie") or []
@@ -749,11 +839,13 @@ def koekjes_opslaan(host, headers):
             continue
         k, v = paar.split("=", 1)
         with KOEK_LOCK:
-            KOEKJES.setdefault(host, {})[k.strip()] = v.strip()
+            KOEKJES.setdefault(sessie, {}).setdefault(host, {})[k.strip()] = v.strip()
+            if len(KOEKJES) > KOEK_MAX_SESSIES:
+                KOEKJES.pop(next(iter(KOEKJES)), None)
 
 
 def haal_bron(url, method="GET", body=None, content_type=None,
-              limiet=MAX_PAGE, timeout=25, extra_headers=None):
+              limiet=MAX_PAGE, timeout=25, extra_headers=None, sessie=None):
     """Ruwe bytes van een bron ophalen (gzip, cookies, ook foutpagina's)."""
     host = urllib.parse.urlsplit(url).hostname or ""
     headers = {
@@ -762,7 +854,7 @@ def haal_bron(url, method="GET", body=None, content_type=None,
         "Accept-Encoding": "gzip",
         "Accept-Language": "nl-NL,nl;q=0.9,en;q=0.8",
     }
-    koek = koekjes_voor(host)
+    koek = koekjes_voor(sessie, host)
     if koek:
         headers["Cookie"] = koek
     if body is not None:
@@ -792,7 +884,7 @@ def haal_bron(url, method="GET", body=None, content_type=None,
                 rheaders[k] = v
         except Exception:
             pass
-        koekjes_opslaan(urllib.parse.urlsplit(final_url).hostname or host, resp.headers)
+        koekjes_opslaan(sessie, urllib.parse.urlsplit(final_url).hostname or host, resp.headers)
     finally:
         resp.close()
     return raw, final_url, ctype, int(status), rheaders
@@ -821,8 +913,12 @@ def zichtbare_tekst(text):
     return text
 
 
-def indexeer(url, pagina, status):
-    """Bezochte pagina's opslaan in de eigen Nieuwsearch-index op de Pi."""
+def indexeer(url, pagina, status, user_id=None):
+    """Bezochte pagina's opslaan in de eigen Nieuwsearch-index op de Pi.
+
+    Per gebruiker: wat de ene gebruiker bezoekt is niet doorzoekbaar voor
+    een andere (privacy).
+    """
     if status >= 400 or not url.startswith(("http://", "https://")):
         return
     m = re.search(r"(?is)<title[^>]*>(.*?)</title>", pagina)
@@ -833,10 +929,10 @@ def indexeer(url, pagina, status):
     con = connect()
     try:
         con.execute(
-            "INSERT INTO pages (url, title, tekst, updated) VALUES (?, ?, ?, datetime('now')) "
+            "INSERT INTO pages (url, title, tekst, updated, user_id) VALUES (?, ?, ?, datetime('now'), ?) "
             "ON CONFLICT(url) DO UPDATE SET title=excluded.title, tekst=excluded.tekst, "
-            "updated=excluded.updated",
-            (url, titel, tekst[:6000]))
+            "updated=excluded.updated, user_id=excluded.user_id",
+            (url, titel, tekst[:6000], user_id))
         con.commit()
     finally:
         con.close()
@@ -1081,12 +1177,14 @@ def index_zoek(q, user_id=None):
     term = "%" + schoon + "%"
     con = connect()
     try:
-        for url, titel in con.execute(
-                "SELECT url, title FROM pages WHERE lower(title) LIKE ? OR lower(tekst) LIKE ? "
-                "ORDER BY updated DESC LIMIT 8", (term, term)).fetchall():
-            resultaten.append({"title": titel or url, "url": url,
-                               "snippet": "Gevonden in je eigen Nieuwsearch-index op de Pi.",
-                               "bron": "eigen index"})
+        if user_id:
+            for url, titel in con.execute(
+                    "SELECT url, title FROM pages WHERE user_id = ? "
+                    "AND (lower(title) LIKE ? OR lower(tekst) LIKE ?) "
+                    "ORDER BY updated DESC LIMIT 8", (user_id, term, term)).fetchall():
+                resultaten.append({"title": titel or url, "url": url,
+                                   "snippet": "Gevonden in je eigen Nieuwsearch-index op de Pi.",
+                                   "bron": "eigen index"})
         eigen = []
         if user_id:
             eigen += con.execute(
@@ -1270,11 +1368,32 @@ class Handler(BaseHTTPRequestHandler):
         token = header[7:].strip() if header.startswith("Bearer ") else ""
         if not token:
             return None
-        return con.execute("SELECT id, username FROM users WHERE token = ?",
-                           (token,)).fetchone()
+        return con.execute(
+            "SELECT id, username FROM users WHERE token_hash = ? "
+            "AND (token_created IS NULL "
+            "     OR datetime(token_created, '+30 days') > datetime('now'))",
+            (hash_token(token),)).fetchone()
 
-    def dien_pagina(self, target, mode, method="GET", body=None, content_type=None):
+    def sessie_id(self):
+        """Sessiesleutel voor de cookie-jar: per account, anders per client-IP."""
+        header = self.headers.get("Authorization", "")
+        token = header[7:].strip() if header.startswith("Bearer ") else ""
+        if token:
+            return "tok:" + hash_token(token)[:24]
+        return "ip:" + (self.client_address[0] if self.client_address else "onbekend")
+
+    def dien_pagina(self, target, mode, method="GET", body=None, content_type=None,
+                    sessie=None, user_id=None):
         """Elk bronbestand via de Pi serveren (html, css, js, beeld, json, video)."""
+        if not veilige_target(target):
+            self.send_html(403,
+                           "<h3 style='font-family:system-ui'>Geblokkeerd adres</h3>"
+                           "<p style='font-family:system-ui;font-size:14px'>Interne en "
+                           "private adressen (localhost, het lokale netwerk, 169.254.x.x) "
+                           "kunnen niet via de proxy worden geopend.</p>"
+                           "<p><a href='/'>Terug naar Nieuwsearch</a></p>",
+                           csp="script-src 'none'")
+            return
         host = urllib.parse.urlsplit(target).hostname or ""
         if method == "GET" and is_ad_host(host):
             self.send_response(204)
@@ -1292,7 +1411,8 @@ class Handler(BaseHTTPRequestHandler):
             raw, final_url, ctype, status, rheaders = haal_bron(
                 target, method=method, body=body, content_type=content_type,
                 limiet=64 * 1024 * 1024 if range_header else MAX_PAGE,
-                extra_headers={"Range": range_header} if range_header else None)
+                extra_headers={"Range": range_header} if range_header else None,
+                sessie=sessie)
         except Exception as exc:
             self.send_html(502, FOUT_PAGINA.replace("__MELDING__", html.escape(str(exc)))
                            .replace("__URL__", html.escape(target, quote=True))
@@ -1321,11 +1441,18 @@ class Handler(BaseHTTPRequestHandler):
             tekst, base = bewerk_html(als_tekst(raw, ctype), final_url, mode, status, oorsprong)
             payload = tekst.encode("utf-8", "replace")
             ctype = "text/html; charset=utf-8"
-            csp = ("script-src 'none'; object-src 'none'; frame-src 'none'; "
-                   "frame-ancestors 'self'") if mode == "veilig" else "frame-ancestors 'self'"
+            # CSP-sandbox: geproxiede pagina's draaien altijd in een ondoorzichtig
+            # (opaque) origin, ook als de gebruiker /browse direct (buiten het
+            # sandboxed iframe) opent. Zo komen ze nooit bij de tokens van de app.
+            if mode == "veilig":
+                csp = ("sandbox allow-forms allow-popups; script-src 'none'; "
+                       "object-src 'none'; frame-src 'none'; frame-ancestors 'self'")
+            else:
+                csp = ("sandbox allow-scripts allow-forms allow-popups allow-downloads; "
+                       "object-src 'none'; frame-ancestors 'self'")
             cache = "no-store"
             try:
-                indexeer(final_url, tekst, status)
+                indexeer(final_url, tekst, status, user_id)
             except Exception:
                 pass
         elif any(t in ct for t in ("javascript", "json", "text/", "svg", "xml")):
@@ -1354,9 +1481,26 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         self.end_headers()
 
+    APP_CSP = ("default-src 'self'; script-src 'self' 'unsafe-inline'; "
+               "style-src 'self' 'unsafe-inline'; img-src 'self' data:; "
+               "connect-src 'self'; frame-src 'self'; base-uri 'none'; "
+               "form-action 'self'")
+
+    def verzend_beveiliging(self):
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("X-Frame-Options", "SAMEORIGIN")
+        self.send_header("Referrer-Policy", "no-referrer")
+
     def do_GET(self):
         if self.path == "/" or self.path.startswith("/?"):
-            self.send_html(200, INDEX_HTML)
+            self.send_response(200)
+            data = INDEX_HTML.encode("utf-8", "replace")
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(data)))
+            self.send_header("Content-Security-Policy", self.APP_CSP)
+            self.verzend_beveiliging()
+            self.end_headers()
+            self.wfile.write(data)
             return
         if self.path.startswith("/browse") or self.path.startswith("/form"):
             params = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query,
@@ -1365,6 +1509,17 @@ class Handler(BaseHTTPRequestHandler):
             mode = (params.get("mode") or ["volledig"])[0]
             if mode not in ("volledig", "veilig"):
                 mode = "volledig"
+            sessie = self.sessie_id()
+            user_id = None
+            con = connect()
+            try:
+                user = self.auth_user(con)
+                if user:
+                    user_id = user[0]
+            except Exception:
+                pass
+            finally:
+                con.close()
             if self.path.startswith("/form") and target.startswith(("http://", "https://")):
                 extra = []
                 for k, lijst in params.items():
@@ -1381,7 +1536,7 @@ class Handler(BaseHTTPRequestHandler):
                                "<h3 style='font-family:system-ui'>Ongeldig adres</h3>"
                                "<p><a href='/'>Terug naar Nieuwsearch</a></p>")
                 return
-            self.dien_pagina(target, mode)
+            self.dien_pagina(target, mode, sessie=sessie, user_id=user_id)
             return
         if self.path.startswith("/search"):
             params = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
@@ -1401,13 +1556,13 @@ class Handler(BaseHTTPRequestHandler):
                 con.close()
             try:
                 self.send_json(200, {"results": nieuwsearch(q, user_id)})
-            except Exception as exc:
-                self.send_json(502, {"error": "Zoeken mislukt: " + str(exc)})
+            except Exception:
+                self.send_json(502, {"error": "Zoeken mislukt, probeer het opnieuw."})
             return
         if self.path.startswith("/favicon"):
             params = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
             host = (params.get("u") or [""])[0].strip().lower()
-            if not re.fullmatch(r"[a-z0-9.-]+", host) or ".." in host:
+            if not re.fullmatch(r"[a-z0-9.-]+", host) or ".." in host or is_private_host(host):
                 self.send_response(400)
                 self.send_header("Content-Length", "0")
                 self.end_headers()
@@ -1476,6 +1631,17 @@ class Handler(BaseHTTPRequestHandler):
             mode = (params.get("mode") or ["volledig"])[0]
             if mode not in ("volledig", "veilig"):
                 mode = "volledig"
+            sessie = self.sessie_id()
+            user_id = None
+            con = connect()
+            try:
+                user = self.auth_user(con)
+                if user:
+                    user_id = user[0]
+            except Exception:
+                pass
+            finally:
+                con.close()
             if not target.startswith(("http://", "https://")):
                 self.send_html(400, "<h3 style='font-family:system-ui'>Ongeldig adres</h3>")
                 return
@@ -1485,13 +1651,18 @@ class Handler(BaseHTTPRequestHandler):
                 length = 0
             inhoud = self.rfile.read(min(length, MAX_BODY)) if length > 0 else None
             self.dien_pagina(target, mode, method="POST", body=inhoud,
-                             content_type=self.headers.get("Content-Type", ""))
+                             content_type=self.headers.get("Content-Type", ""),
+                             sessie=sessie, user_id=user_id)
             return
         con = connect()
         try:
             path = self.path.rstrip("/")
             body = self.read_json() or {}
             if path == "/api-key":
+                user = self.auth_user(con)
+                if not user:
+                    self.send_json(401, {"error": "log eerst in om de AI-sleutel te beheren"})
+                    return
                 key = str(body.get("key", "")).strip()
                 if len(key) < 10:
                     self.send_json(400, {"error": "dat lijkt geen geldige sleutel"})
@@ -1504,6 +1675,10 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json(200, {"ok": True})
                 return
             if path == "/ask":
+                user = self.auth_user(con)
+                if not user:
+                    self.send_json(401, {"error": "log eerst in om de AI-assistent te gebruiken"})
+                    return
                 prompt = str(body.get("prompt", ""))[:4000]
                 if not prompt:
                     self.send_json(400, {"error": "lege vraag"})
@@ -1513,10 +1688,13 @@ class Handler(BaseHTTPRequestHandler):
                 except urllib.error.HTTPError as exc:
                     self.send_json(502, {"error": "LLM-api gaf fout " + str(exc.code)
                                                + " (controleer je API-sleutel)"})
-                except Exception as exc:
-                    self.send_json(502, {"error": str(exc)})
+                except Exception:
+                    self.send_json(502, {"error": "de AI-assistent is nu niet bereikbaar, probeer het later opnieuw"})
                 return
             if path == "/register":
+                if not toegestaan("reg:" + self.client_address[0]):
+                    self.send_json(429, {"error": "te veel pogingen, probeer het later opnieuw"})
+                    return
                 username = str(body.get("username", "")).strip()
                 password = str(body.get("password", ""))
                 if not re.fullmatch(r"[A-Za-z0-9_.-]{3,40}", username):
@@ -1529,8 +1707,9 @@ class Handler(BaseHTTPRequestHandler):
                 token = secrets.token_hex(32)
                 try:
                     con.execute(
-                        "INSERT INTO users (username, pwhash, salt, token) VALUES (?, ?, ?, ?)",
-                        (username, hash_password(password, salt), salt, token))
+                        "INSERT INTO users (username, pwhash, salt, token, token_hash, token_created) "
+                        "VALUES (?, ?, ?, NULL, ?, datetime('now'))",
+                        (username, hash_password(password, salt), salt, hash_token(token)))
                     con.commit()
                 except sqlite3.IntegrityError:
                     self.send_json(409, {"error": "gebruikersnaam bestaat al"})
@@ -1538,12 +1717,23 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json(201, {"ok": True, "token": token})
                 return
             if path == "/login":
-                row = con.execute("SELECT id, pwhash, salt, token FROM users WHERE username = ?",
+                if not toegestaan("log:" + self.client_address[0]):
+                    self.send_json(429, {"error": "te veel inlogpogingen, probeer het over 5 minuten opnieuw"})
+                    return
+                row = con.execute("SELECT id, pwhash, salt FROM users WHERE username = ?",
                                   (str(body.get("username", "")),)).fetchone()
-                if not row or hash_password(str(body.get("password", "")), row[2]) != row[1]:
+                if not row or not secrets.compare_digest(
+                        hash_password(str(body.get("password", "")), row[2]), row[1]):
                     self.send_json(401, {"error": "verkeerde inloggegevens"})
                     return
-                self.send_json(200, {"ok": True, "token": row[3]})
+                # Nieuw token bij elke login (oude sessies vervallen niet meteen,
+                # maar hetzelfde token wordt nooit opnieuw uitgegeven)
+                token = secrets.token_hex(32)
+                con.execute(
+                    "UPDATE users SET token = NULL, token_hash = ?, token_created = datetime('now') "
+                    "WHERE id = ?", (hash_token(token), row[0]))
+                con.commit()
+                self.send_json(200, {"ok": True, "token": token})
                 return
             user = self.auth_user(con)
             if not user:
@@ -1565,8 +1755,8 @@ class Handler(BaseHTTPRequestHandler):
                 return
             if path == "/history":
                 url = str(body.get("url", "")).strip()
-                if not url:
-                    self.send_json(400, {"error": "url ontbreekt"})
+                if not url.startswith(("http://", "https://")):
+                    self.send_json(400, {"error": "url moet met http(s):// beginnen"})
                     return
                 con.execute("INSERT INTO history (user_id, title, url) VALUES (?, ?, ?)",
                             (user[0], str(body.get("title", ""))[:200], url))

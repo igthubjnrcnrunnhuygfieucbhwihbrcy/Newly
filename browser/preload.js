@@ -5,6 +5,9 @@ contextBridge.exposeInMainWorld('nieuw', {
   activate: function (i) { return ipcRenderer.invoke('tab:activate', i); },
   closeTab: function (i) { return ipcRenderer.invoke('tab:close', i); },
   navigate: function (url) { return ipcRenderer.invoke('tab:navigate', url); },
+  goBack: function () { return ipcRenderer.invoke('tab:back'); },
+  goForward: function () { return ipcRenderer.invoke('tab:forward'); },
+  reload: function () { return ipcRenderer.invoke('tab:reload'); },
   cdp: function (i, method, params) { return ipcRenderer.invoke('cdp:send', i, method, params); },
   onInfo: function (cb) { ipcRenderer.on('tab:info', function (e, info) { cb(info); }); }
 });

@@ -2,7 +2,7 @@
 <html lang="nl">
 <head>
 <meta charset="utf-8">
-<title>Climora  Eigen Browser</title>
+<title>Climora — Eigen Browser</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
   :root {
@@ -747,6 +747,14 @@
       }
     };
 
+    // HTML-escapen: titels en URL's van websites mogen nooit als HTML
+    // worden ingevoegd (XSS in de UI van de browser zelf).
+    function esc(t) {
+      const d = document.createElement('div');
+      d.textContent = String(t == null ? '' : t);
+      return d.innerHTML;
+    }
+
     // Tab management
     api.onInfo(function (info) {
       updateTabs(info);
@@ -769,7 +777,7 @@
         
         tab.innerHTML = `
           <i class="tab-icon fas ${icon}"></i>
-          <span>${info.title || 'Nieuwe tab'}</span>
+          <span>${esc(info.title || 'Nieuwe tab')}</span>
           <span class="tab-close" onclick="event.stopPropagation(); closeTab(${k});">&times;</span>
         `;
         tab.onclick = function () { api.activate(k); };
@@ -820,13 +828,13 @@
     document.getElementById('go').onclick = go;
     document.getElementById('new').onclick = function () { api.newTab(null); };
     document.getElementById('back').onclick = function () { 
-      if (activeTabIndex >= 0) api.navigate('javascript:history.back()'); 
+      if (activeTabIndex >= 0) api.goBack(); 
     };
     document.getElementById('forward').onclick = function () { 
-      if (activeTabIndex >= 0) api.navigate('javascript:history.forward()'); 
+      if (activeTabIndex >= 0) api.goForward(); 
     };
     document.getElementById('refresh').onclick = function () { 
-      if (activeTabIndex >= 0) api.navigate('javascript:location.reload()'); 
+      if (activeTabIndex >= 0) api.reload(); 
     };
     
     urlEl.addEventListener('keydown', function (e) {

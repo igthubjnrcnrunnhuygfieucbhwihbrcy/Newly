@@ -9,6 +9,17 @@ let tabs = [];        // { view, title, url }
 let active = -1;
 const TOP_UI = 64;    // hoogte van de eigen UI-balk
 
+// Alleen http(s) mag geladen worden: geen file://, chrome:// of javascript://
+// vanuit de renderer (voorkomt lokale bestandslekken bij een UI-compromittering).
+function veiligeUrl(url) {
+  if (typeof url !== 'string') return null;
+  try {
+    const u = new URL(url);
+    if (u.protocol === 'http:' || u.protocol === 'https:') return u.href;
+  } catch (e) { /* ongeldig */ }
+  return null;
+}
+
 function contentBounds() {
   const [w, h] = win.getContentSize();
   return { x: 0, y: TOP_UI, width: w, height: Math.max(0, h - TOP_UI) };
@@ -21,7 +32,8 @@ function sendInfo(i) {
   });
 }
 
-function createTab(url) {
+function createTab(rawUrl) {
+  const url = veiligeUrl(rawUrl);
   const view = new WebContentsView({ webPreferences: { contextIsolation: true, sandbox: true } });
   tabs.push({ view: view, title: url || 'Nieuwe tab', url: url || '' });
   const i = tabs.length - 1;
@@ -31,6 +43,7 @@ function createTab(url) {
   view.webContents.on('did-navigate', function (e, u) { tabs[i].url = u; sendInfo(i); });
   view.webContents.on('did-navigate-in-page', function (e, u) { tabs[i].url = u; sendInfo(i); });
   if (url) view.webContents.loadURL(url);
+  else tabs[i].title = rawUrl ? 'Geblokkeerd adres' : 'Nieuwe tab';
   setActive(i);
   return i;
 }
@@ -56,7 +69,12 @@ function closeTab(i) {
 app.whenReady().then(function () {
   win = new BrowserWindow({
     width: 1280, height: 800, minWidth: 800, minHeight: 500,
-    webPreferences: { preload: path.join(__dirname, 'preload.js') }
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      webSecurity: true
+    }
   });
   win.loadFile(path.join(__dirname, 'index.html'));
   win.on('resize', function () {
@@ -69,7 +87,17 @@ ipcMain.handle('tab:new', function (e, url) { return createTab(url || null); });
 ipcMain.handle('tab:activate', function (e, i) { setActive(i); });
 ipcMain.handle('tab:close', function (e, i) { closeTab(i); });
 ipcMain.handle('tab:navigate', function (e, url) {
-  if (active >= 0 && url) tabs[active].view.webContents.loadURL(url);
+  const veilig = veiligeUrl(url);
+  if (active >= 0 && veilig) tabs[active].view.webContents.loadURL(veilig);
+});
+ipcMain.handle('tab:back', function () {
+  if (active >= 0) tabs[active].view.webContents.goBack();
+});
+ipcMain.handle('tab:forward', function () {
+  if (active >= 0) tabs[active].view.webContents.goForward();
+});
+ipcMain.handle('tab:reload', function () {
+  if (active >= 0) tabs[active].view.webContents.reload();
 });
 // De CDP-brug voor de agent: elk DevTools-commando kan naar een tab.
 ipcMain.handle('cdp:send', async function (e, i, method, params) {

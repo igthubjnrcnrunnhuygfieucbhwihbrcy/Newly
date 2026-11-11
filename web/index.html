@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Climora  AI Assistent</title>
+<title>Climora — AI Assistent</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
   :root {
@@ -1150,6 +1150,12 @@
     setInterval(checkGateway, 30000);
 
     // Load history
+    function esc(t) {
+      const d = document.createElement('div');
+      d.textContent = String(t == null ? '' : t);
+      return d.innerHTML;
+    }
+
     function renderHistory() {
       historyListEl.innerHTML = '';
       conversationHistory.slice().reverse().forEach((item, index) => {
@@ -1158,8 +1164,8 @@
         div.className = 'history-item';
         div.onclick = () => loadFromHistory(actualIndex);
         div.innerHTML = `
-          <span class="text">${item.prompt.substring(0, 50)}${item.prompt.length > 50 ? '...' : ''}</span>
-          <span class="timestamp">${new Date(item.timestamp).toLocaleTimeString('nl-NL')}</span>
+          <span class="text">${esc(item.prompt.substring(0, 50))}${item.prompt.length > 50 ? '...' : ''}</span>
+          <span class="timestamp">${esc(new Date(item.timestamp).toLocaleTimeString('nl-NL'))}</span>
         `;
         historyListEl.appendChild(div);
       });
@@ -1293,7 +1299,7 @@
         responseAreaEl.innerHTML = `
           <div class="error-message">
             <i class="fas fa-exclamation-triangle"></i>
-            <span><strong>Fout:</strong> ${err.message}</span>
+            <span><strong>Fout:</strong> ${esc(err.message)}</span>
           </div>
         `;
       } finally {
