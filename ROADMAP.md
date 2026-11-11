@@ -1,6 +1,6 @@
 # Roadmap
 
-## [32m✅ Voltooid (deze implementatie)[0m
+## ✅ Voltooid (deze implementatie)
 
 ### Multi-Provider AI Gateway
 - [x] Ondersteuning voor 8 LLM providers (Mistral, OpenAI, Anthropic, Google, Groq, Perplexity, Cohere)
@@ -34,12 +34,10 @@
 - [x] Suggesties voor snelle vragen
 
 ### Sync-Server Uitbreidingen
-- [x] Extensions module voor externe services
-- [x] Webhook manager
-- [x] Content aggregator
-- [x] Ondersteunde service types (news, weather, translation, etc.)
+- [x] Beveiligingsaudit: SSRF-bescherming, auth-dichtingen, token-hashing, CSP-sandbox, rate limiting
+- [ ] Externe services en webhooks (verwijderd: was dood en defect code; herbouwen wanneer nodig)
 
-## [34m🚀 Toekomstige Fases[0m
+## 🚀 Toekomstige Fases
 
 ## Fase 4  Volledige Sync & Integraties (2-4 weken)
 - [ ] **Echte sync tussen apparaten** via Climora Sync
@@ -159,7 +157,7 @@
 - [ ] **CDN integratie**
 - [ ] **Caching strategieën**
 
-## [35m🎯 Prioriteiten per Kwartaal[0m
+## 🎯 Prioriteiten per Kwartaal
 
 ### Q1 2025
 - **Fase 4**: Volledige sync & integraties
@@ -181,7 +179,7 @@
 - **Enterprise**: LDAP, SSO, audit logging
 - **Fase 8**: Cloud integraties
 
-## [36m📊 Metrics & Doelen[0m
+## 📊 Metrics & Doelen
 
 ### Technische Doelen
 - [ ] **100% test coverage** voor kritische componenten
@@ -197,7 +195,7 @@
 - [ ] **50+ extensies** beschikbaar
 - [ ] **4.5+ sterren** gemiddelde rating
 
-## [33m🔧 Technische Vereisten[0m
+## 🔧 Technische Vereisten
 
 ### Backend
 - Python 3.10+
@@ -224,7 +222,7 @@
 - Sentry (error tracking)
 - Logging (ELK stack, toekomstig)
 
-## [32m✅ Samenvatting Huidige Implementatie[0m
+## ✅ Samenvatting Huidige Implementatie
 
 ### Wat is gerealiseerd:
 

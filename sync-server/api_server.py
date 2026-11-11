@@ -32,7 +32,8 @@ API_KEY = os.environ.get("NEWLY_API_KEY", "")
 DEBUG = os.environ.get("NEWLY_API_DEBUG", "false").lower() == "true"
 
 # Database configuratie (deelt database met sync-server)
-DB_PATH = Path(__file__).resolve().parent / "data" / "zelfsync.db"
+DB_PATH = Path(os.environ.get("NEWLY_DB_PATH",
+                              Path(__file__).resolve().parent / "data" / "zelfsync.db"))
 DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 
 # API-sleutels voor externe clients (opslaan in apart bestand)
@@ -240,6 +241,14 @@ class APIHandler(BaseHTTPRequestHandler):
         
         return False
 
+    def mag(self, required_permission, path, method, start_time):
+        """Auth+permissie in één stap; stuurt zelf de 401 en audit-regel."""
+        if self.has_permission(required_permission):
+            return True
+        self.send_json(401, {"error": "Niet geauthoriseerd"})
+        self.audit_log(path, method, 401, start_time)
+        return False
+
     def audit_log(self, endpoint, method, status_code, start_time=None):
         """Log de request voor auditing."""
         auth = self.authenticate()
@@ -335,9 +344,7 @@ class APIHandler(BaseHTTPRequestHandler):
                 return
             
             if path == "/api":
-                if not self.has_permission("read"):
-                    self.send_json(401, {"error": "Niet geauthoriseerd"})
-                    self.audit_log("/api", "GET", 401, start_time)
+                if not self.mag("read", "/api", "GET", start_time):
                     return
                 
                 self.send_json(200, {
@@ -352,9 +359,7 @@ class APIHandler(BaseHTTPRequestHandler):
             
             # Bookmarks endpoints
             if path == "/api/bookmarks":
-                if not self.has_permission("read"):
-                    self.send_json(401, {"error": "Niet geauthoriseerd"})
-                    self.audit_log("/api/bookmarks", "GET", 401, start_time)
+                if not self.mag("read", "/api/bookmarks", "GET", start_time):
                     return
                 
                 user_id = query_params.get("user_id", [None])[0]
@@ -386,9 +391,7 @@ class APIHandler(BaseHTTPRequestHandler):
             
             # History endpoints
             if path == "/api/history":
-                if not self.has_permission("read"):
-                    self.send_json(401, {"error": "Niet geauthoriseerd"})
-                    self.audit_log("/api/history", "GET", 401, start_time)
+                if not self.mag("read", "/api/history", "GET", start_time):
                     return
                 
                 user_id = query_params.get("user_id", [None])[0]
@@ -420,9 +423,7 @@ class APIHandler(BaseHTTPRequestHandler):
             
             # Stats endpoint
             if path == "/api/stats":
-                if not self.has_permission("read"):
-                    self.send_json(401, {"error": "Niet geauthoriseerd"})
-                    self.audit_log("/api/stats", "GET", 401, start_time)
+                if not self.mag("read", "/api/stats", "GET", start_time):
                     return
                 
                 con = get_db_connection()
@@ -446,9 +447,7 @@ class APIHandler(BaseHTTPRequestHandler):
             
             # External services
             if path == "/api/services":
-                if not self.has_permission("read"):
-                    self.send_json(401, {"error": "Niet geauthoriseerd"})
-                    self.audit_log("/api/services", "GET", 401, start_time)
+                if not self.mag("read", "/api/services", "GET", start_time):
                     return
                 
                 con = get_db_connection()
@@ -490,10 +489,8 @@ class APIHandler(BaseHTTPRequestHandler):
         try:
             # Create API client
             if path == "/api/clients":
-                if not self.has_permission("*"):
-                    self.send_json(401, {"error": "Alleen admin kan clients aanmaken"})
-                    self.audit_log("/api/clients", "POST", 401, start_time)
-                    return
+                if not self.mag("*", "/api/clients", "POST", start_time):
+                        return
                 
                 name = str(body.get("name", "Unnamed Client"))[:100]
                 permissions = str(body.get("permissions", "read"))
@@ -540,9 +537,7 @@ class APIHandler(BaseHTTPRequestHandler):
             
             # Add bookmark
             if path == "/api/bookmarks":
-                if not self.has_permission("write"):
-                    self.send_json(401, {"error": "Niet geauthoriseerd"})
-                    self.audit_log("/api/bookmarks", "POST", 401, start_time)
+                if not self.mag("write", "/api/bookmarks", "POST", start_time):
                     return
                 
                 url = body.get("url", "")
@@ -581,9 +576,7 @@ class APIHandler(BaseHTTPRequestHandler):
             
             # Add history
             if path == "/api/history":
-                if not self.has_permission("write"):
-                    self.send_json(401, {"error": "Niet geauthoriseerd"})
-                    self.audit_log("/api/history", "POST", 401, start_time)
+                if not self.mag("write", "/api/history", "POST", start_time):
                     return
                 
                 url = body.get("url", "")
@@ -617,10 +610,8 @@ class APIHandler(BaseHTTPRequestHandler):
             
             # AI ask endpoint
             if path == "/api/ask":
-                if not self.has_permission("ai"):
-                    self.send_json(401, {"error": "Niet geauthoriseerd voor AI"})
-                    self.audit_log("/api/ask", "POST", 401, start_time)
-                    return
+                if not self.mag("ai", "/api/ask", "POST", start_time):
+                        return
                 
                 prompt = str(body.get("prompt", ""))[:8000]
                 system = str(body.get("system", "Je bent een AI-assistent. Antwoord in de taal van de gebruiker."))[:4000]
@@ -667,9 +658,7 @@ class APIHandler(BaseHTTPRequestHandler):
             
             # Add external service
             if path == "/api/services":
-                if not self.has_permission("write"):
-                    self.send_json(401, {"error": "Niet geauthoriseerd"})
-                    self.audit_log("/api/services", "POST", 401, start_time)
+                if not self.mag("write", "/api/services", "POST", start_time):
                     return
                 
                 name = body.get("name")
@@ -701,9 +690,7 @@ class APIHandler(BaseHTTPRequestHandler):
             
             # Add webhook
             if path == "/api/webhooks":
-                if not self.has_permission("write"):
-                    self.send_json(401, {"error": "Niet geauthoriseerd"})
-                    self.audit_log("/api/webhooks", "POST", 401, start_time)
+                if not self.mag("write", "/api/webhooks", "POST", start_time):
                     return
                 
                 name = body.get("name")
@@ -758,10 +745,8 @@ class APIHandler(BaseHTTPRequestHandler):
         try:
             # Update bookmark
             if path.startswith("/api/bookmarks/"):
-                if not self.has_permission("write"):
-                    self.send_json(401, {"error": "Niet geauthoriseerd"})
-                    self.audit_log(path, "PUT", 401, start_time)
-                    return
+                if not self.mag("write", path, "PUT", start_time):
+                        return
                 
                 bookmark_id = path.split("/")[-1]
                 url = body.get("url")
@@ -788,10 +773,8 @@ class APIHandler(BaseHTTPRequestHandler):
             
             # Update service
             if path.startswith("/api/services/"):
-                if not self.has_permission("write"):
-                    self.send_json(401, {"error": "Niet geauthoriseerd"})
-                    self.audit_log(path, "PUT", 401, start_time)
-                    return
+                if not self.mag("write", path, "PUT", start_time):
+                        return
                 
                 service_id = path.split("/")[-1]
                 name = body.get("name")
@@ -861,10 +844,8 @@ class APIHandler(BaseHTTPRequestHandler):
         try:
             # Delete bookmark
             if path.startswith("/api/bookmarks/"):
-                if not self.has_permission("write"):
-                    self.send_json(401, {"error": "Niet geauthoriseerd"})
-                    self.audit_log(path, "DELETE", 401, start_time)
-                    return
+                if not self.mag("write", path, "DELETE", start_time):
+                        return
                 
                 bookmark_id = path.split("/")[-1]
                 
@@ -881,10 +862,8 @@ class APIHandler(BaseHTTPRequestHandler):
             
             # Delete service
             if path.startswith("/api/services/"):
-                if not self.has_permission("write"):
-                    self.send_json(401, {"error": "Niet geauthoriseerd"})
-                    self.audit_log(path, "DELETE", 401, start_time)
-                    return
+                if not self.mag("write", path, "DELETE", start_time):
+                        return
                 
                 service_id = path.split("/")[-1]
                 
@@ -901,10 +880,8 @@ class APIHandler(BaseHTTPRequestHandler):
             
             # Delete webhook
             if path.startswith("/api/webhooks/"):
-                if not self.has_permission("write"):
-                    self.send_json(401, {"error": "Niet geauthoriseerd"})
-                    self.audit_log(path, "DELETE", 401, start_time)
-                    return
+                if not self.mag("write", path, "DELETE", start_time):
+                        return
                 
                 webhook_id = path.split("/")[-1]
                 

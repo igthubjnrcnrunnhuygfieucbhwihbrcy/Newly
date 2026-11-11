@@ -13,7 +13,7 @@
 - **Toast notificaties** voor feedback aan de gebruiker
 
 ### 🤖 Multi-Provider AI Gateway
-De gateway ondersteunt nu **8 verschillende LLM providers**:
+De gateway ondersteunt **7 LLM providers**:
 
 | Provider | Modellen | API Type |
 |----------|----------|----------|
@@ -60,24 +60,11 @@ GET  /api/stats       — Statistieken
 **Start de API Server:**
 ```bash
 cd sync-server
-export CLIMORA_API_KEY="jouw-geheime-sleutel"
-export CLIMORA_API_PORT=8767
+export NEWLY_API_KEY="jouw-geheime-sleutel"
+export NEWLY_API_PORT=8767
 python3 api_server.py
 ```
 
-### 🌐 Externe Services & Integraties
-
-De **extensions.py** module biedt uitbreidingen voor:
-
-- **Externe Service Beheer**
-  - Nieuws aggregators (NewsAPI)
-  - Weerservices (OpenWeatherMap)
-  - Vertaalservices (Google Translate)
-  - Sociale media integraties
-  - Cloud opslag (Google Drive, Dropbox)
-
-- **Webhook Ondersteuning**
-  - Event-driven notificaties
   - Ondersteunde events: `bookmark.added`, `bookmark.removed`, `history.added`, `user.login`, `ai.request`, etc.
 
 - **Content Aggregatie**
@@ -121,7 +108,6 @@ De **web/index.html** biedt nu:
 - **gateway/** — Lokale LLM-gateway met ondersteuning voor meerdere providers
 - **sync-server/** — Climora Sync: werkende multi-user sync-service + webproxy
 - **sync-server/api_server.py** — Eigen REST API voor externe integraties
-- **sync-server/extensions.py** — Uitbreidingen voor externe services
 - **web/** — Web-UI met AI-assistent en provider selectie
 
 ## Snel Starten
@@ -416,6 +402,19 @@ python3 sync-server/server.py
 export CLIMORA_API_KEY="jouw-api-sleutel"
 python3 sync-server/api_server.py
 ```
+
+## Tests & CI
+
+De repository heeft een test-suite (alleen Python-standaardbibliotheek) die de
+beveiligingskritieke onderdelen dekt: SSRF-blokkering, authenticatie,
+token-rotatie, rate limiting, de gateway-beschermingen en de REST-API.
+
+```bash
+python3 -m unittest discover -s tests -v
+```
+
+GitHub Actions draait bij elke push/PR: syntax-controle (Python, JavaScript,
+shell) en de volledige test-suite (`.github/workflows/ci.yml`).
 
 ## Contact
 
