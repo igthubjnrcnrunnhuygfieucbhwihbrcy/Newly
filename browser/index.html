@@ -2,7 +2,7 @@
 <html lang="nl">
 <head>
 <meta charset="utf-8">
-<title>Climora  Eigen Browser</title>
+<title>Climora — Eigen Browser</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
   :root {
@@ -696,7 +696,8 @@
     // Settings state
     let settings = {
       defaultProvider: localStorage.getItem('climora_default_provider') || 'mistral',
-      defaultModel: localStorage.getItem('climora_default_model') || 'mistral-small-latest'
+      defaultModel: localStorage.getItem('climora_default_model') || 'mistral-small-latest',
+      gatewayUrl: localStorage.getItem('climora_gateway_url') || 'http://localhost:8766'
     };
 
     // Provider configurations
@@ -747,6 +748,14 @@
       }
     };
 
+    // HTML-escapen: titels en URL's van websites mogen nooit als HTML
+    // worden ingevoegd (XSS in de UI van de browser zelf).
+    function esc(t) {
+      const d = document.createElement('div');
+      d.textContent = String(t == null ? '' : t);
+      return d.innerHTML;
+    }
+
     // Tab management
     api.onInfo(function (info) {
       updateTabs(info);
@@ -769,7 +778,7 @@
         
         tab.innerHTML = `
           <i class="tab-icon fas ${icon}"></i>
-          <span>${info.title || 'Nieuwe tab'}</span>
+          <span>${esc(info.title || 'Nieuwe tab')}</span>
           <span class="tab-close" onclick="event.stopPropagation(); closeTab(${k});">&times;</span>
         `;
         tab.onclick = function () { api.activate(k); };
@@ -820,13 +829,13 @@
     document.getElementById('go').onclick = go;
     document.getElementById('new').onclick = function () { api.newTab(null); };
     document.getElementById('back').onclick = function () { 
-      if (activeTabIndex >= 0) api.navigate('javascript:history.back()'); 
+      if (activeTabIndex >= 0) api.goBack(); 
     };
     document.getElementById('forward').onclick = function () { 
-      if (activeTabIndex >= 0) api.navigate('javascript:history.forward()'); 
+      if (activeTabIndex >= 0) api.goForward(); 
     };
     document.getElementById('refresh').onclick = function () { 
-      if (activeTabIndex >= 0) api.navigate('javascript:location.reload()'); 
+      if (activeTabIndex >= 0) api.reload(); 
     };
     
     urlEl.addEventListener('keydown', function (e) {
@@ -969,15 +978,32 @@
       modalOverlay.classList.remove('show');
     }
 
-    function loadProviderSettings() {
+    async function loadProviderSettings() {
       const providersList = document.getElementById('providers-list');
       providersList.innerHTML = '';
+      
+      // Welke sleutels er staan bepaalt de gateway (de enige plek waar ze
+      // echt gebruikt worden); localStorage is alleen een cache.
+      const ingestelde = {};
+      try {
+        const res = await fetch(`${settings.gatewayUrl}/config`);
+        if (res.ok) {
+          const data = await res.json();
+          for (const [provider, info] of Object.entries(data.providers || {})) {
+            ingestelde[provider] = !!info.has_key;
+          }
+        }
+      } catch (err) {
+        showToast('Gateway niet bereikbaar op ' + settings.gatewayUrl, 'error');
+      }
       
       for (const [key, config] of Object.entries(providers)) {
         const providerItem = document.createElement('div');
         providerItem.className = 'provider-item';
         
-        const hasKey = localStorage.getItem(`climora_key_${key}`) ? true : false;
+        const hasKey = ingestelde[key] !== undefined
+          ? ingestelde[key]
+          : !!localStorage.getItem(`climora_key_${key}`);
         
         providerItem.innerHTML = `
           <div class="provider-logo provider-${key}">
@@ -1025,21 +1051,39 @@
       }
     }
 
-    function addProviderKey(provider) {
+    async function addProviderKey(provider) {
       const key = prompt(`Voer API-sleutel in voor ${providers[provider].name}:`);
-      if (key && key.trim()) {
+      if (!key || !key.trim()) return;
+      try {
+        const res = await fetch(`${settings.gatewayUrl}/config/keys`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'set', provider: provider, key: key.trim() })
+        });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
         localStorage.setItem(`climora_key_${provider}`, key.trim());
         showToast(`Sleutel voor ${providers[provider].name} opgeslagen`, 'success');
-        loadProviderSettings();
+      } catch (err) {
+        showToast('Opslaan mislukt: ' + err.message, 'error');
       }
+      loadProviderSettings();
     }
 
-    function removeProviderKey(provider) {
-      if (confirm(`Weet je zeker dat je de API-sleutel voor ${providers[provider].name} wilt verwijderen?`)) {
+    async function removeProviderKey(provider) {
+      if (!confirm(`Weet je zeker dat je de API-sleutel voor ${providers[provider].name} wilt verwijderen?`)) return;
+      try {
+        const res = await fetch(`${settings.gatewayUrl}/config/keys`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'remove', provider: provider })
+        });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
         localStorage.removeItem(`climora_key_${provider}`);
         showToast(`Sleutel voor ${providers[provider].name} verwijderd`, 'success');
-        loadProviderSettings();
+      } catch (err) {
+        showToast('Verwijderen mislukt: ' + err.message, 'error');
       }
+      loadProviderSettings();
     }
 
     function saveSettings() {

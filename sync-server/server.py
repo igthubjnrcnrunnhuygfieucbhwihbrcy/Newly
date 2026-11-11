@@ -22,19 +22,23 @@ Service:    zie install-pi.sh (systemd)
 import gzip
 import hashlib
 import html
+import ipaddress
 import json
 import os
 import re
 import secrets
+import socket
 import sqlite3
 import threading
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-DB_PATH = Path(__file__).resolve().parent / "data" / "zelfsync.db"
+DB_PATH = Path(os.environ.get("NEWLY_DB_PATH",
+                              Path(__file__).resolve().parent / "data" / "zelfsync.db"))
 DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 KEY_PATH = DB_PATH.parent / "data" / "apikey.txt"
 MAX_BODY = 1_000_000
@@ -44,647 +48,51 @@ LLM_MODEL = os.environ.get("LLM_MODEL", "mistral-small-latest")
 UA_STR = ("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
           "(KHTML, like Gecko) Chrome/124.0 Safari/537.36 NieuwsearchBrowser/0.9")
 
-INDEX_HTML = """<!DOCTYPE html>
-<html lang="nl">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Climora Search</title>
-<link rel="icon" href="data:,">
-<style>
- :root { --bg:#f4f7fb; --tekst:#182430; --balk:rgba(255,255,255,.93); --rand:#e2e9f1;
-   --vlak:#ffffff; --vlak2:#eef2f8; --invoer:#eef2f8; --subtekst:#5c6c81; --accent:#1a7f37;
-   --schaduw:rgba(20,40,80,.13); --fout:#b91c1c; }
- body.donker { --bg:#0e131a; --tekst:#e8edf4; --balk:rgba(14,19,26,.94); --rand:#232d3a;
-   --vlak:#151d28; --vlak2:#1c2532; --invoer:#1c2532; --subtekst:#a6b4c6; --accent:#4ade80;
-   --schaduw:rgba(0,0,0,.5); --fout:#f87171; }
- * { box-sizing: border-box; }
- body { margin: 0; font-family: -apple-system, 'Segoe UI', Roboto, system-ui, sans-serif;
-   background: var(--bg); color: var(--tekst); font-size: 15px; }
- header { display: flex; gap: 4px; align-items: center; height: 54px; padding: 0 10px;
-   background: var(--balk); backdrop-filter: blur(12px); border-bottom: 1px solid var(--rand); }
- .iconbtn { width: 38px; height: 38px; border-radius: 10px; border: 0; background: transparent;
-   color: var(--tekst); font-size: 17px; cursor: pointer; display: flex; align-items: center;
-   justify-content: center; flex: none; transition: background .15s; }
- .iconbtn:hover { background: var(--vlak2); }
- .addr { flex: 1; display: flex; align-items: center; background: var(--invoer);
-   border: 1px solid var(--rand); border-radius: 999px; padding: 0 14px; min-width: 0;
-   transition: border-color .15s; }
- .addr:focus-within { border-color: var(--accent); }
- .addr input { flex: 1; background: transparent; border: 0; outline: none; color: var(--tekst);
-   font-size: 15px; padding: 10px 0; min-width: 0; }
- .addr .z { color: var(--subtekst); font-size: 12px; margin-right: 8px; flex: none; }
- .tabbar { display: flex; align-items: flex-end; gap: 4px; height: 42px; padding: 6px 10px 0;
-   background: var(--balk); border-bottom: 1px solid var(--rand); }
- #tablijst { display: flex; align-items: flex-end; gap: 4px; overflow-x: auto; flex: 1; }
- .tab { display: flex; align-items: center; gap: 8px; padding: 8px 10px; cursor: pointer;
-   max-width: 220px; min-width: 130px; border-radius: 10px 10px 0 0; border: 1px solid transparent;
-   border-bottom: 0; background: transparent; }
- .tab.actief { background: var(--bg); border-color: var(--rand); }
- .tab .tnm { font-size: 13px; color: var(--subtekst); overflow: hidden; text-overflow: ellipsis;
-   white-space: nowrap; flex: 1; }
- .tab.actief .tnm { color: var(--tekst); font-weight: 600; }
- .tab .tx { font-size: 13px; color: var(--subtekst); width: 20px; height: 20px; flex: none;
-   border-radius: 50%; display: flex; align-items: center; justify-content: center; }
- .tab .tx:hover { background: var(--vlak2); color: var(--fout); }
- .plus { width: 30px; height: 30px; margin: 0 4px 6px; border-radius: 8px; border: 0;
-   background: transparent; color: var(--subtekst); font-size: 18px; cursor: pointer; flex: none; }
- .plus:hover { background: var(--vlak2); color: var(--tekst); }
- #loader { height: 2px; background: var(--accent); width: 0%; transition: width .4s; }
- #content { position: relative; height: calc(100vh - 100px); }
- #content iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0;
-   background: #fff; }
- #start { position: absolute; inset: 0; overflow: auto; display: flex; flex-direction: column;
-   align-items: center; padding: 48px 20px 30px; }
- .logo { font-size: 38px; font-weight: 800; letter-spacing: -.5px; }
- .logo b { color: var(--accent); font-weight: 800; }
- .zoek { display: flex; width: 100%; max-width: 600px; margin: 24px 0 10px; background: var(--vlak);
-   border: 1px solid var(--rand); border-radius: 999px; padding: 5px;
-   box-shadow: 0 2px 16px var(--schaduw); }
- .zoek input { flex: 1; background: transparent; border: 0; outline: none; color: var(--tekst);
-   font-size: 16px; padding: 11px 20px; min-width: 0; }
- .zoek button { background: var(--accent); border: 0; border-radius: 999px; color: #fff;
-   padding: 11px 26px; font-size: 15px; font-weight: 600; cursor: pointer; flex: none; }
- .zoek button:hover { filter: brightness(1.08); }
- #results { display: none; width: 100%; max-width: 660px; text-align: left; margin-top: 14px; }
- #results h2 { font-size: 14px; font-weight: 600; color: var(--subtekst); margin: 0 0 6px; }
- .res { padding: 13px 4px; border-bottom: 1px solid var(--rand); }
- .res a { color: var(--tekst); font-size: 16px; font-weight: 500; text-decoration: none; }
- .res a:hover { color: var(--accent); }
- .res .url { color: #1a7f37; font-size: 12.5px; margin: 3px 0; word-break: break-all; }
- body.donker .res .url { color: #6ecf8e; }
- .res .snip { color: var(--subtekst); font-size: 13.5px; line-height: 1.5; }
- .chip { display: inline-block; font-size: 11px; color: var(--accent); background: var(--vlak2);
-   border-radius: 999px; padding: 2px 9px; margin-left: 8px; vertical-align: middle; }
- .tegels { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
-   gap: 14px; width: 100%; max-width: 560px; margin-top: 26px; }
- .tegel { background: var(--vlak); border: 1px solid var(--rand); border-radius: 16px;
-   padding: 18px 10px; text-align: center; cursor: pointer; transition: .15s; }
- .tegel:hover { transform: translateY(-2px); border-color: var(--accent); }
- .tegel img { width: 30px; height: 30px; border-radius: 8px; margin-bottom: 8px; }
- .tegel .nm { font-size: 13px; color: var(--subtekst); word-break: break-all; }
- #panel, #ai { position: fixed; top: 106px; right: 12px; width: min(92vw, 360px);
-   background: var(--vlak); border: 1px solid var(--rand); border-radius: 16px; padding: 18px;
-   display: none; z-index: 20; box-shadow: 0 14px 40px var(--schaduw); }
- #panel h3, #ai h3 { margin: 0 0 12px; font-size: 15px; }
- #panel input, #ai input, #ai textarea { width: 100%; background: var(--invoer);
-   border: 1px solid var(--rand); border-radius: 10px; color: var(--tekst); padding: 11px;
-   margin-bottom: 8px; outline: none; font-size: 14px; font-family: inherit; }
- .sub { background: var(--vlak2); color: var(--tekst); border: 1px solid var(--rand);
-   border-radius: 10px; padding: 10px 14px; cursor: pointer; font-size: 13px; margin: 4px 4px 8px 0; }
- .sub.blauw { background: var(--accent); color: #fff; border-color: transparent; }
- #panel a { color: var(--accent); display: block; padding: 7px 0; font-size: 14px;
-   text-decoration: none; border-bottom: 1px solid var(--rand); word-break: break-all; }
- .keuze { font-size: 13px; color: var(--subtekst); margin: 10px 0 6px; }
- #antwoord { font-size: 14px; line-height: 1.55; white-space: pre-wrap; color: var(--tekst);
-   margin-top: 8px; }
- #toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
-   background: var(--vlak); border: 1px solid var(--rand); color: var(--tekst); padding: 11px 22px;
-   border-radius: 999px; font-size: 13px; display: none; z-index: 30;
-   box-shadow: 0 6px 22px var(--schaduw); }
- .hint { font-size: 12.5px; color: var(--subtekst); margin-top: 30px; text-align: center;
-   max-width: 460px; line-height: 1.5; }
- @media (max-width: 700px) {
-   .iconbtn { width: 33px; height: 33px; font-size: 15px; }
-   .iconbtn.vw, .iconbtn.th { display: none; }
-   .tab { min-width: 92px; max-width: 150px; }
-   .tab .tnm { font-size: 12px; }
-   .plus { margin-bottom: 4px; }
-   #start { padding: 26px 14px 20px; }
-   .logo { font-size: 30px; }
-   #panel, #ai { left: 8px; right: 8px; width: auto; top: 100px; }
-   .hint { margin-top: 20px; }
- }
-</style>
-</head>
-<body>
-<header>
-  <button class="iconbtn" onclick="terug()" title="Terug">&#8592;</button>
-  <button class="iconbtn vw" onclick="vooruit()" title="Vooruit">&#8594;</button>
-  <button class="iconbtn" onclick="ververs()" title="Verversen">&#8635;</button>
-  <button class="iconbtn" onclick="naarStart()" title="Startpagina">&#8962;</button>
-  <form class="addr" onsubmit="return ga()">
-    <span class="z">&#128269;</span>
-    <input id="url" placeholder="Zoek of typ een webadres" autocomplete="off" spellcheck="false">
-  </form>
-  <button class="iconbtn" onclick="sla()" title="Bladwijzer (Ctrl+D)">&#9733;</button>
-  <button class="iconbtn" onclick="openDirect()" title="Openen buiten Climora Search">&#8599;</button>
-  <button class="iconbtn" onclick="echteModus()" title="Climora Weather">&#9728;</button>
-  <button class="iconbtn" onclick="aiPanel()" title="AI-assistent">&#129302;</button>
-  <button class="iconbtn th" onclick="thema()" title="Licht/donker">&#9788;</button>
-  <button class="iconbtn" onclick="menu()" title="Menu">&#9776;</button>
-</header>
-<div class="tabbar">
-  <div id="tablijst"></div>
-  <button class="plus" onclick="nieuwTab()" title="Nieuw tabblad (Ctrl+T)">&#65291;</button>
-</div>
-<div id="loader"></div>
+# De UI staat in een apart bestand zodat die normaal te bewerken is;
+# de installer kopieert de hele sync-servermap inclusief static/.
+INDEX_HTML_PATH = Path(__file__).resolve().parent / "static" / "index.html"
+try:
+    INDEX_HTML = INDEX_HTML_PATH.read_text(encoding="utf-8")
+except OSError:
+    INDEX_HTML = ("<!DOCTYPE html><html lang=\"nl\"><head><meta charset=\"utf-8\">"
+                  "<title>Climora</title></head><body>"
+                  "<h1>Climora</h1><p>static/index.html ontbreekt; "
+                  "installeer de server opnieuw (zie install-pi.sh).</p></body></html>")
 
-<div id="content">
-  <div id="start">
-    <div class="logo">Climora</div>
-    <form class="zoek" onsubmit="return ga2()">
-      <input id="url2" placeholder="Zoek op het web of typ een adres" autocomplete="off" spellcheck="false">
-      <button type="submit">Ga</button>
-    </form>
-    <div id="results"></div>
-    <div class="tegels" id="tegels"><div class="tegel" onclick="window.open('https://climoraweather.base44.app', '_blank')" title="Climora Weather">
-    <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAiIGhlaWdodD0iMzAiIHZpZXdCb3g9IjAgMCAzMCAzMCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDJMMTMuMDkgMTRMMTUgMTJMMTMuMDkgOEwzIDE0TDEyIDJMOSAzMEwxMy4wOSA0MEwxNSA0OEwxMy4wOSA1NkwyMCA0OEwxMy4wOSA2NFoiIGZpbGw9IiMxYTdmMzciLz4KPC9zdmc+" alt="Weather">
-    <div class="nm">Weer</div>
-  </div>
-    </div>
-    <div class="hint">Jouw Climora Browser, op jouw eigen Pi.<br>Climora Search zoekt in je eigen index en in Wikipedia. De Tv-knop hierboven opent de echte Chromium op de Pi: daar werkt alles, ook video.</div>
-  </div>
-</div>
 
-<div id="panel"></div>
-<div id="ai"></div>
-<div id="toast"></div>
+# ---------- SSRF-bescherming ----------
+# De proxy mag nooit interne adressen ophalen (router, localhost-diensten,
+# cloud-metadata). We lossen de hostnaam op en weigeren private IP's.
+def is_private_host(host):
+    if not host:
+        return True
+    host = host.strip("[].").lower()
+    if host in ("localhost", "localhost.localdomain"):
+        return True
+    try:
+        infos = socket.getaddrinfo(host, None, proto=socket.IPPROTO_TCP)
+    except socket.gaierror:
+        return True
+    for info in infos:
+        try:
+            ip = ipaddress.ip_address(info[4][0])
+        except ValueError:
+            return True
+        if (ip.is_private or ip.is_loopback or ip.is_link_local
+                or ip.is_reserved or ip.is_multicast or ip.is_unspecified):
+            return True
+    return False
 
-<script>
-var token = localStorage.getItem('climora_token') || '';
-var mode = localStorage.getItem('nieuwly_mode') || 'volledig';
-var themaStand = localStorage.getItem('nieuwly_thema') || 'licht';
-var tabs = [];
-var actief = 0;
 
-function tab() { return tabs[actief]; }
+def veilige_target(url):
+    """Geef True terug als de URL veilig opgehaald mag worden."""
+    delen = urllib.parse.urlsplit(url)
+    if delen.scheme not in ("http", "https"):
+        return False
+    if delen.username or delen.password:
+        return False
+    return not is_private_host(delen.hostname or "")
 
-function zetThema() {
-  document.body.className = (themaStand === 'donker') ? 'donker' : '';
-  localStorage.setItem('nieuwly_thema', themaStand);
-}
-function thema() { themaStand = (themaStand === 'donker') ? 'licht' : 'donker'; zetThema(); }
-zetThema();
-
-function isUrl(v) {
-  if (/^https?:\\/\\//i.test(v)) return true;
-  if (/^about:/i.test(v)) return true;
-  if (/\\s/.test(v)) return false;
-  return /^[a-z0-9-]+(\\.[a-z0-9-]+)+(:\\d+)?([\\/?#].*)?$/i.test(v);
-}
-
-function hostnaam(u) {
-  try { return new URL(u).hostname.replace(/^www\\./, ''); } catch (e) { return u; }
-}
-
-function zandbak(f) {
-  f.setAttribute('sandbox', mode === 'volledig'
-    ? 'allow-scripts allow-forms allow-popups allow-downloads'
-    : 'allow-same-origin allow-forms allow-popups');
-}
-
-function maakFrame() {
-  var f = document.createElement('iframe');
-  f.style.display = 'none';
-  zandbak(f);
-  f.addEventListener('load', function () {
-    klaar();
-    for (var j = 0; j < tabs.length; j++) {
-      if (tabs[j].frame === f) {
-        try {
-          var t = f.contentWindow.document.title;
-          if (t) { tabs[j].titel = t; renderTabs(); }
-        } catch (e) {}
-        break;
-      }
-    }
-  });
-  document.getElementById('content').appendChild(f);
-  return f;
-}
-
-function nieuwTab(url) {
-  var t = { url: '', titel: 'Nieuw tabblad', stack: [], sidx: -1, frame: maakFrame() };
-  tabs.push(t);
-  zetTab(tabs.length - 1);
-  if (url) gaNaar(url, true);
-}
-
-function sluitTab(i) {
-  if (tabs.length === 1) { naarStart(); return; }
-  var f = tabs[i].frame;
-  if (f.parentNode) f.parentNode.removeChild(f);
-  tabs.splice(i, 1);
-  if (actief >= i && actief > 0) actief--;
-  zetTab(Math.min(actief, tabs.length - 1));
-}
-
-function zetTab(i) {
-  actief = i;
-  sluitPanelen();
-  for (var j = 0; j < tabs.length; j++) tabs[j].frame.style.display = 'none';
-  var t = tab();
-  if (t.url) { t.frame.style.display = 'block'; }
-  else { document.getElementById('start').style.display = 'flex'; }
-  document.getElementById('url').value = t.url || '';
-  renderTabs();
-}
-
-function renderTabs() {
-  var lijst = document.getElementById('tablijst');
-  lijst.innerHTML = '';
-  tabs.forEach(function (t, i) {
-    var d = document.createElement('div');
-    d.className = 'tab' + (i === actief ? ' actief' : '');
-    d.title = t.url || 'Nieuw tabblad';
-    var nm = document.createElement('span');
-    nm.className = 'tnm';
-    nm.textContent = t.titel || 'Nieuw tabblad';
-    var x = document.createElement('span');
-    x.className = 'tx';
-    x.innerHTML = '&#10005;';
-    x.title = 'Tabblad sluiten';
-    x.onclick = function (ev) { ev.stopPropagation(); sluitTab(i); };
-    d.appendChild(nm); d.appendChild(x);
-    d.onclick = function () { zetTab(i); };
-    lijst.appendChild(d);
-  });
-}
-
-function gaNaar(v, nieuw) {
-  var t = tab();
-  if (v.indexOf('http') !== 0) v = 'https://' + v;
-  if (nieuw !== false) {
-    t.stack = t.stack.slice(0, t.sidx + 1);
-    t.stack.push(v);
-    t.sidx = t.stack.length - 1;
-  }
-  t.url = v;
-  t.titel = hostnaam(v);
-  laadPagina();
-}
-
-function laadPagina() {
-  var t = tab();
-  document.getElementById('results').style.display = 'none';
-  document.getElementById('tegels').style.display = 'grid';
-  document.getElementById('start').style.display = 'none';
-  document.getElementById('url').value = t.url;
-  t.frame.style.display = 'block';
-  t.frame.src = '/browse?url=' + encodeURIComponent(t.url) + '&mode=' + encodeURIComponent(mode);
-  document.title = t.titel;
-  renderTabs();
-  laadbalk();
-  if (token) {
-    fetch('/history', { method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-      body: JSON.stringify({ url: t.url, title: t.titel }) }).catch(function () {});
-  }
-}
-
-function ga() {
-  var v = document.getElementById('url').value.trim();
-  if (!v) return false;
-  if (!isUrl(v)) { toonResultaten(v); return false; }
-  gaNaar(v, true);
-  document.getElementById('url').blur();
-  return false;
-}
-
-function ga2() {
-  var v = document.getElementById('url2').value.trim();
-  if (!v) return false;
-  if (!isUrl(v)) { toonResultaten(v); return false; }
-  gaNaar(v, true);
-  return false;
-}
-
-function naarStart() {
-  var t = tab();
-  t.url = '';
-  t.titel = 'Nieuw tabblad';
-  t.frame.style.display = 'none';
-  document.getElementById('start').style.display = 'flex';
-  document.getElementById('results').style.display = 'none';
-  document.getElementById('tegels').style.display = 'grid';
-  document.getElementById('url').value = '';
-  document.title = 'Climora Search';
-  laadTegels();
-  renderTabs();
-}
-
-function resultsZichtbaar() { return document.getElementById('results').style.display === 'block'; }
-
-function terug() {
-  var t = tab();
-  if (!t.url && t.sidx >= 0) { gaNaar(t.stack[t.sidx], false); return; }
-  if (t.sidx > 0) { t.sidx--; gaNaar(t.stack[t.sidx], false); return; }
-  if (t.url) { naarStart(); return; }
-  if (resultsZichtbaar()) { naarStart(); }
-}
-
-function vooruit() {
-  var t = tab();
-  if (t.sidx < t.stack.length - 1) { t.sidx++; gaNaar(t.stack[t.sidx], false); }
-}
-
-function ververs() {
-  var t = tab();
-  if (t.url) { laadbalk(); t.frame.src = t.frame.src; }
-}
-
-function openDirect() {
-  var u = tab().url;
-  if (u) window.open(u, '_blank');
-  else toast('Open eerst een pagina.');
-}
-
-function echteModus() {
-  var u = 'https://climoraweather.base44.app'?autoconnect=true&resize=scale';
-  window.open(u, '_blank');
-}
-
-function laadbalk() { document.getElementById('loader').style.width = '70%'; }
-function klaar() {
-  var l = document.getElementById('loader');
-  l.style.width = '100%';
-  setTimeout(function () { l.style.width = '0%'; }, 350);
-}
-
-function laadTegels() {
-  var w = document.getElementById('tegels');
-  w.innerHTML = '';
-  if (!token) {
-    var d1 = document.createElement('div');
-    d1.className = 'hint';
-    d1.textContent = 'Snelkoppelingen van sites waar je vaak komt, verschijnen hier als je een account maakt en vaker surft.';
-    w.appendChild(d1);
-    return;
-  }
-  fetch('/history?limit=200', { headers: { 'Authorization': 'Bearer ' + token } })
-    .then(function (r) { return r.json(); })
-    .then(function (d) {
-      var telling = {};
-      (d.history || []).forEach(function (h) {
-        try { var dom = new URL(h.url).hostname.replace(/^www\\./, ''); if (dom) telling[dom] = (telling[dom] || 0) + 1; } catch (e) {}
-      });
-      var top = Object.keys(telling).filter(function (k) { return telling[k] >= 3; })
-        .sort(function (a, b) { return telling[b] - telling[a]; }).slice(0, 8);
-      if (!top.length) {
-        var d2 = document.createElement('div');
-        d2.className = 'hint';
-        d2.textContent = 'Kom vaker op een site en hij verschijnt hier vanzelf.';
-        w.appendChild(d2);
-        return;
-      }
-      top.forEach(function (dom) {
-        var t = document.createElement('div');
-        t.className = 'tegel';
-        var img = document.createElement('img');
-        img.src = '/favicon?u=' + encodeURIComponent(dom);
-        img.onerror = function () { if (img.parentNode) img.parentNode.removeChild(img); };
-        var nm = document.createElement('div');
-        nm.className = 'nm';
-        nm.textContent = dom;
-        t.appendChild(img); t.appendChild(nm);
-        t.onclick = function () { gaNaar('https://' + dom, true); };
-        w.appendChild(t);
-      });
-    });
-}
-
-function toonResultaten(q) {
-  var t = tab();
-  if (t.url) t.url = '';
-  t.frame.style.display = 'none';
-  document.getElementById('start').style.display = 'flex';
-  document.getElementById('tegels').style.display = 'none';
-  var r = document.getElementById('results');
-  r.style.display = 'block';
-  r.innerHTML = '';
-  var h = document.createElement('h2');
-  h.textContent = 'Climora Search-resultaten voor "' + q + '"';
-  r.appendChild(h);
-  laadbalk();
-  var kop = token ? { 'Authorization': 'Bearer ' + token } : {};
-  fetch('/search?q=' + encodeURIComponent(q), { headers: kop })
-    .then(function (res) { return res.json(); })
-    .then(function (d) {
-      klaar();
-      var items = d.results || [];
-      if (d.error || !items.length) {
-        var e = document.createElement('div');
-        e.className = 'hint';
-        e.textContent = d.error || 'Niets gevonden. Probeer een andere zoekterm of typ een volledig webadres.';
-        r.appendChild(e);
-        return;
-      }
-      items.forEach(function (it) {
-        var box = document.createElement('div');
-        box.className = 'res';
-        var a = document.createElement('a');
-        a.href = '#';
-        a.textContent = it.title || it.url;
-        if (it.bron) {
-          var chip = document.createElement('span');
-          chip.className = 'chip';
-          chip.textContent = it.bron;
-          a.appendChild(document.createTextNode(' '));
-          a.appendChild(chip);
-        }
-        a.onclick = function () { gaNaar(it.url, true); return false; };
-        var u = document.createElement('div');
-        u.className = 'url';
-        u.textContent = it.url;
-        box.appendChild(a); box.appendChild(u);
-        if (it.snippet) {
-          var s = document.createElement('div');
-          s.className = 'snip';
-          s.textContent = it.snippet;
-          box.appendChild(s);
-        }
-        r.appendChild(box);
-      });
-    })
-    .catch(function () { klaar(); });
-}
-
-function sla() {
-  var t = tab();
-  if (!t.url) { toast('Ga eerst naar een pagina.'); return; }
-  if (!token) { menu(); return; }
-  fetch('/bookmarks', { method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-    body: JSON.stringify({ url: t.url, title: t.titel || t.url }) })
-    .then(function (r) { return r.json(); })
-    .then(function (d) { toast(d.error || 'Bladwijzer opgeslagen'); });
-}
-
-function toast(t) {
-  var el = document.getElementById('toast');
-  el.textContent = t;
-  el.style.display = 'block';
-  clearTimeout(el._t);
-  el._t = setTimeout(function () { el.style.display = 'none'; }, 2600);
-}
-
-function sluitPanelen() {
-  document.getElementById('panel').style.display = 'none';
-  document.getElementById('ai').style.display = 'none';
-}
-
-function menu() {
-  var p = document.getElementById('panel');
-  var ai = document.getElementById('ai');
-  ai.style.display = 'none';
-  if (p.style.display === 'block') { p.style.display = 'none'; return; }
-  p.style.display = 'block';
-  var kop = '<h3>Menu</h3>' +
-    '<div class="keuze">Weergave</div>' +
-    '<button class="sub' + (mode === 'volledig' ? ' blauw' : '') + '" onclick="setMode(&quot;volledig&quot;)">Volledig (JavaScript aan)</button>' +
-    '<button class="sub' + (mode === 'veilig' ? ' blauw' : '') + '" onclick="setMode(&quot;veilig&quot;)">Veilig (zonder JavaScript)</button>' +
-    '<div class="keuze">Advertentieblokkering: aan (ingebouwd)</div>' +
-    '<div class="keuze">Tv-knop = echte Chromium op de Pi: voor video, inloggen en lastige sites</div>' +
-    '<div class="keuze">Sneltoetsen: Ctrl+L adres, Ctrl+T nieuw tabblad, Ctrl+W sluiten, Ctrl+D bladwijzer</div>';
-  if (token) { laadBladwijzers(p, kop); } else { laadLogin(p, kop); }
-}
-
-function setMode(m) {
-  mode = m;
-  localStorage.setItem('nieuwly_mode', m);
-  tabs.forEach(function (t) { zandbak(t.frame); });
-  menu();
-  toast(m === 'volledig' ? 'Volledige weergave aan (JavaScript)' : 'Veilige weergave aan (zonder JavaScript)');
-  if (tab().url) laadPagina();
-}
-
-function laadLogin(p, kop) {
-  p.innerHTML = kop +
-    '<div class="keuze">Account (voor bladwijzers, geschiedenis en snelkoppelingen)</div>' +
-    '<input id="u" placeholder="Gebruikersnaam">' +
-    '<input id="p" type="password" placeholder="Wachtwoord (min. 8 tekens)">' +
-    '<button class="sub blauw" onclick="stuur(&quot;register&quot;)">Account maken</button>' +
-    '<button class="sub" onclick="stuur(&quot;login&quot;)">Inloggen</button>';
-}
-
-function laadBladwijzers(p, kop) {
-  p.innerHTML = kop + '<div class="keuze">Bladwijzers</div><div id="lijst">Laden...</div>' +
-    '<div class="keuze">Recente geschiedenis</div><div id="hist"></div>' +
-    '<button class="sub" onclick="uitloggen()" style="margin-top:12px">Uitloggen</button>';
-  fetch('/bookmarks', { headers: { 'Authorization': 'Bearer ' + token } })
-    .then(function (r) { return r.json(); })
-    .then(function (d) {
-      var lijst = document.getElementById('lijst');
-      if (!lijst) return;
-      lijst.innerHTML = '';
-      var items = d.bookmarks || [];
-      if (!items.length) { lijst.innerHTML = '<div class="keuze">Nog geen bladwijzers. Gebruik de ster op een pagina.</div>'; }
-      items.forEach(function (b) {
-        var a = document.createElement('a');
-        a.href = '#';
-        a.textContent = b.title || b.url;
-        a.onclick = function () { p.style.display = 'none'; gaNaar(b.url, true); return false; };
-        lijst.appendChild(a);
-      });
-    });
-  fetch('/history?limit=15', { headers: { 'Authorization': 'Bearer ' + token } })
-    .then(function (r) { return r.json(); })
-    .then(function (d) {
-      var h = document.getElementById('hist');
-      if (!h) return;
-      h.innerHTML = '';
-      (d.history || []).forEach(function (b) {
-        var a = document.createElement('a');
-        a.href = '#';
-        a.textContent = b.url;
-        a.onclick = function () { p.style.display = 'none'; gaNaar(b.url, true); return false; };
-        h.appendChild(a);
-      });
-    });
-}
-
-function uitloggen() {
-  token = '';
-  localStorage.removeItem('climora_token');
-  document.getElementById('panel').style.display = 'none';
-  toast('Uitgelogd');
-  laadTegels();
-}
-
-function stuur(route) {
-  var body = JSON.stringify({
-    username: document.getElementById('u').value,
-    password: document.getElementById('p').value
-  });
-  fetch('/' + route, { method: 'POST',
-    headers: { 'Content-Type': 'application/json' }, body: body })
-    .then(function (r) { return r.json(); })
-    .then(function (d) {
-      if (d.token) {
-        token = d.token;
-        localStorage.setItem('climora_token', token);
-        toast('Ingelogd');
-        menu();
-        laadTegels();
-      } else { toast(d.error || 'Mislukt'); }
-    });
-}
-
-function aiPanel() {
-  var ai = document.getElementById('ai');
-  var p = document.getElementById('panel');
-  p.style.display = 'none';
-  if (ai.style.display === 'block') { ai.style.display = 'none'; return; }
-  ai.style.display = 'block';
-  fetch('/ai-status').then(function (r) { return r.json(); }).then(function (d) {
-    if (d.key_set) {
-      ai.innerHTML = '<h3>AI-assistent</h3>' +
-        '<textarea id="prompt" rows="3" placeholder="Vraag iets over de huidige pagina of iets anders..."></textarea>' +
-        '<button class="sub blauw" onclick="vraagAI()">Vraag</button>' +
-        '<div id="antwoord"></div>';
-    } else {
-      ai.innerHTML = '<h3>AI instellen</h3>' +
-        '<div class="keuze">Plak je Mistral API-sleutel (te halen op console.mistral.ai). De sleutel wordt alleen op jouw eigen Pi opgeslagen.</div>' +
-        '<input id="sleutel" type="password" placeholder="API-sleutel">' +
-        '<button class="sub blauw" onclick="slaSleutel()">Opslaan</button>';
-    }
-  });
-}
-
-function slaSleutel() {
-  var k = document.getElementById('sleutel').value.trim();
-  if (!k) return;
-  fetch('/api-key', { method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ key: k }) })
-    .then(function (r) { return r.json(); })
-    .then(function (d) {
-      toast(d.error || 'Sleutel opgeslagen');
-      aiPanel();
-    });
-}
-
-function vraagAI() {
-  var pr = document.getElementById('prompt').value.trim();
-  if (!pr) return;
-  var uit = document.getElementById('antwoord');
-  uit.textContent = 'Denkt na...';
-  fetch('/ask', { method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt: pr, url: tab().url || '' }) })
-    .then(function (r) { return r.json(); })
-    .then(function (d) {
-      uit.textContent = d.answer || d.error || 'Geen antwoord.';
-    })
-    .catch(function () { uit.textContent = 'Fout bij het vragen.'; });
-}
-
-document.addEventListener('keydown', function (e) {
-  if (!(e.ctrlKey || e.metaKey)) return;
-  var k = e.key.toLowerCase();
-  if (k === 'l') { e.preventDefault(); var u = document.getElementById('url'); u.focus(); u.select(); }
-  else if (k === 't') { e.preventDefault(); nieuwTab(); }
-  else if (k === 'w') { e.preventDefault(); sluitTab(actief); }
-  else if (k === 'd') { e.preventDefault(); sla(); }
-});
-
-nieuwTab();
-laadTegels();
-</script>
-</body>
-</html>
-"""
 
 def connect():
     con = sqlite3.connect(DB_PATH, timeout=10)
@@ -695,7 +103,9 @@ def connect():
         "  username TEXT UNIQUE NOT NULL,"
         "  pwhash TEXT NOT NULL,"
         "  salt TEXT NOT NULL,"
-        "  token TEXT UNIQUE"
+        "  token TEXT UNIQUE,"
+        "  token_hash TEXT UNIQUE,"
+        "  token_created TEXT"
         ");"
         "CREATE TABLE IF NOT EXISTS bookmarks ("
         "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
@@ -715,9 +125,32 @@ def connect():
         "  url TEXT PRIMARY KEY,"
         "  title TEXT NOT NULL DEFAULT '',"
         "  tekst TEXT NOT NULL DEFAULT '',"
-        "  updated TEXT DEFAULT (datetime('now'))"
+        "  updated TEXT DEFAULT (datetime('now')),"
+        "  user_id INTEGER"
         ");")
+    # Migraties voor bestaande databases
+    for kolom, definitie in (("token_hash", "TEXT UNIQUE"),
+                             ("token_created", "TEXT")):
+        try:
+            con.execute(f"ALTER TABLE users ADD COLUMN {kolom} {definitie}")
+        except sqlite3.OperationalError:
+            pass
+    try:
+        con.execute("ALTER TABLE pages ADD COLUMN user_id INTEGER")
+    except sqlite3.OperationalError:
+        pass
+    # Bestaande plaintext-tokens eenmalig hashen en daarna wissen
+    rows = con.execute(
+        "SELECT id, token FROM users WHERE token_hash IS NULL AND token IS NOT NULL AND token != ''").fetchall()
+    for rid, tok in rows:
+        con.execute("UPDATE users SET token_hash = ?, token = NULL, token_created = datetime('now') WHERE id = ?",
+                    (hash_token(tok), rid))
+    con.commit()
     return con
+
+
+def hash_token(token):
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
 def hash_password(password, salt_hex):
@@ -725,19 +158,41 @@ def hash_password(password, salt_hex):
                                bytes.fromhex(salt_hex), 120_000).hex()
 
 
-# ---------- cookies (simpel, per domein, alleen in het geheugen) ----------
+# ---------- rate limiting (brute-force login/register) ----------
+POGINGEN = {}
+POGING_LOCK = threading.Lock()
+POGING_VENSTER = 300
+POGING_MAX = 10
+
+def toegestaan(sleutel, max_pogingen=POGING_MAX):
+    nu = time.time()
+    with POGING_LOCK:
+        lijst = [t for t in POGINGEN.get(sleutel, []) if nu - t < POGING_VENSTER]
+        if len(lijst) >= max_pogingen:
+            POGINGEN[sleutel] = lijst
+            return False
+        lijst.append(nu)
+        POGINGEN[sleutel] = lijst
+        if len(POGINGEN) > 10_000:
+            for k in [k for k, v in POGINGEN.items() if not v]:
+                POGINGEN.pop(k, None)
+        return True
+
+
+# ---------- cookies (per sessie, per domein, alleen in het geheugen) ----------
 KOEKJES = {}
 KOEK_LOCK = threading.Lock()
+KOEK_MAX_SESSIES = 500
 
-def koekjes_voor(host):
-    if not host:
+def koekjes_voor(sessie, host):
+    if not host or not sessie:
         return ""
     with KOEK_LOCK:
-        items = KOEKJES.get(host, {})
+        items = KOEKJES.get(sessie, {}).get(host, {})
     return "; ".join(k + "=" + v for k, v in items.items())
 
-def koekjes_opslaan(host, headers):
-    if not host or headers is None:
+def koekjes_opslaan(sessie, host, headers):
+    if not sessie or not host or headers is None:
         return
     try:
         regels = headers.get_all("Set-Cookie") or []
@@ -749,11 +204,13 @@ def koekjes_opslaan(host, headers):
             continue
         k, v = paar.split("=", 1)
         with KOEK_LOCK:
-            KOEKJES.setdefault(host, {})[k.strip()] = v.strip()
+            KOEKJES.setdefault(sessie, {}).setdefault(host, {})[k.strip()] = v.strip()
+            if len(KOEKJES) > KOEK_MAX_SESSIES:
+                KOEKJES.pop(next(iter(KOEKJES)), None)
 
 
 def haal_bron(url, method="GET", body=None, content_type=None,
-              limiet=MAX_PAGE, timeout=25, extra_headers=None):
+              limiet=MAX_PAGE, timeout=25, extra_headers=None, sessie=None):
     """Ruwe bytes van een bron ophalen (gzip, cookies, ook foutpagina's)."""
     host = urllib.parse.urlsplit(url).hostname or ""
     headers = {
@@ -762,7 +219,7 @@ def haal_bron(url, method="GET", body=None, content_type=None,
         "Accept-Encoding": "gzip",
         "Accept-Language": "nl-NL,nl;q=0.9,en;q=0.8",
     }
-    koek = koekjes_voor(host)
+    koek = koekjes_voor(sessie, host)
     if koek:
         headers["Cookie"] = koek
     if body is not None:
@@ -792,7 +249,7 @@ def haal_bron(url, method="GET", body=None, content_type=None,
                 rheaders[k] = v
         except Exception:
             pass
-        koekjes_opslaan(urllib.parse.urlsplit(final_url).hostname or host, resp.headers)
+        koekjes_opslaan(sessie, urllib.parse.urlsplit(final_url).hostname or host, resp.headers)
     finally:
         resp.close()
     return raw, final_url, ctype, int(status), rheaders
@@ -821,8 +278,12 @@ def zichtbare_tekst(text):
     return text
 
 
-def indexeer(url, pagina, status):
-    """Bezochte pagina's opslaan in de eigen Nieuwsearch-index op de Pi."""
+def indexeer(url, pagina, status, user_id=None):
+    """Bezochte pagina's opslaan in de eigen Nieuwsearch-index op de Pi.
+
+    Per gebruiker: wat de ene gebruiker bezoekt is niet doorzoekbaar voor
+    een andere (privacy).
+    """
     if status >= 400 or not url.startswith(("http://", "https://")):
         return
     m = re.search(r"(?is)<title[^>]*>(.*?)</title>", pagina)
@@ -833,10 +294,10 @@ def indexeer(url, pagina, status):
     con = connect()
     try:
         con.execute(
-            "INSERT INTO pages (url, title, tekst, updated) VALUES (?, ?, ?, datetime('now')) "
+            "INSERT INTO pages (url, title, tekst, updated, user_id) VALUES (?, ?, ?, datetime('now'), ?) "
             "ON CONFLICT(url) DO UPDATE SET title=excluded.title, tekst=excluded.tekst, "
-            "updated=excluded.updated",
-            (url, titel, tekst[:6000]))
+            "updated=excluded.updated, user_id=excluded.user_id",
+            (url, titel, tekst[:6000], user_id))
         con.commit()
     finally:
         con.close()
@@ -1081,12 +542,14 @@ def index_zoek(q, user_id=None):
     term = "%" + schoon + "%"
     con = connect()
     try:
-        for url, titel in con.execute(
-                "SELECT url, title FROM pages WHERE lower(title) LIKE ? OR lower(tekst) LIKE ? "
-                "ORDER BY updated DESC LIMIT 8", (term, term)).fetchall():
-            resultaten.append({"title": titel or url, "url": url,
-                               "snippet": "Gevonden in je eigen Nieuwsearch-index op de Pi.",
-                               "bron": "eigen index"})
+        if user_id:
+            for url, titel in con.execute(
+                    "SELECT url, title FROM pages WHERE user_id = ? "
+                    "AND (lower(title) LIKE ? OR lower(tekst) LIKE ?) "
+                    "ORDER BY updated DESC LIMIT 8", (user_id, term, term)).fetchall():
+                resultaten.append({"title": titel or url, "url": url,
+                                   "snippet": "Gevonden in je eigen Nieuwsearch-index op de Pi.",
+                                   "bron": "eigen index"})
         eigen = []
         if user_id:
             eigen += con.execute(
@@ -1270,11 +733,32 @@ class Handler(BaseHTTPRequestHandler):
         token = header[7:].strip() if header.startswith("Bearer ") else ""
         if not token:
             return None
-        return con.execute("SELECT id, username FROM users WHERE token = ?",
-                           (token,)).fetchone()
+        return con.execute(
+            "SELECT id, username FROM users WHERE token_hash = ? "
+            "AND (token_created IS NULL "
+            "     OR datetime(token_created, '+30 days') > datetime('now'))",
+            (hash_token(token),)).fetchone()
 
-    def dien_pagina(self, target, mode, method="GET", body=None, content_type=None):
+    def sessie_id(self):
+        """Sessiesleutel voor de cookie-jar: per account, anders per client-IP."""
+        header = self.headers.get("Authorization", "")
+        token = header[7:].strip() if header.startswith("Bearer ") else ""
+        if token:
+            return "tok:" + hash_token(token)[:24]
+        return "ip:" + (self.client_address[0] if self.client_address else "onbekend")
+
+    def dien_pagina(self, target, mode, method="GET", body=None, content_type=None,
+                    sessie=None, user_id=None):
         """Elk bronbestand via de Pi serveren (html, css, js, beeld, json, video)."""
+        if not veilige_target(target):
+            self.send_html(403,
+                           "<h3 style='font-family:system-ui'>Geblokkeerd adres</h3>"
+                           "<p style='font-family:system-ui;font-size:14px'>Interne en "
+                           "private adressen (localhost, het lokale netwerk, 169.254.x.x) "
+                           "kunnen niet via de proxy worden geopend.</p>"
+                           "<p><a href='/'>Terug naar Nieuwsearch</a></p>",
+                           csp="script-src 'none'")
+            return
         host = urllib.parse.urlsplit(target).hostname or ""
         if method == "GET" and is_ad_host(host):
             self.send_response(204)
@@ -1292,7 +776,8 @@ class Handler(BaseHTTPRequestHandler):
             raw, final_url, ctype, status, rheaders = haal_bron(
                 target, method=method, body=body, content_type=content_type,
                 limiet=64 * 1024 * 1024 if range_header else MAX_PAGE,
-                extra_headers={"Range": range_header} if range_header else None)
+                extra_headers={"Range": range_header} if range_header else None,
+                sessie=sessie)
         except Exception as exc:
             self.send_html(502, FOUT_PAGINA.replace("__MELDING__", html.escape(str(exc)))
                            .replace("__URL__", html.escape(target, quote=True))
@@ -1321,11 +806,18 @@ class Handler(BaseHTTPRequestHandler):
             tekst, base = bewerk_html(als_tekst(raw, ctype), final_url, mode, status, oorsprong)
             payload = tekst.encode("utf-8", "replace")
             ctype = "text/html; charset=utf-8"
-            csp = ("script-src 'none'; object-src 'none'; frame-src 'none'; "
-                   "frame-ancestors 'self'") if mode == "veilig" else "frame-ancestors 'self'"
+            # CSP-sandbox: geproxiede pagina's draaien altijd in een ondoorzichtig
+            # (opaque) origin, ook als de gebruiker /browse direct (buiten het
+            # sandboxed iframe) opent. Zo komen ze nooit bij de tokens van de app.
+            if mode == "veilig":
+                csp = ("sandbox allow-forms allow-popups; script-src 'none'; "
+                       "object-src 'none'; frame-src 'none'; frame-ancestors 'self'")
+            else:
+                csp = ("sandbox allow-scripts allow-forms allow-popups allow-downloads; "
+                       "object-src 'none'; frame-ancestors 'self'")
             cache = "no-store"
             try:
-                indexeer(final_url, tekst, status)
+                indexeer(final_url, tekst, status, user_id)
             except Exception:
                 pass
         elif any(t in ct for t in ("javascript", "json", "text/", "svg", "xml")):
@@ -1354,9 +846,26 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         self.end_headers()
 
+    APP_CSP = ("default-src 'self'; script-src 'self' 'unsafe-inline'; "
+               "style-src 'self' 'unsafe-inline'; img-src 'self' data:; "
+               "connect-src 'self'; frame-src 'self'; base-uri 'none'; "
+               "form-action 'self'")
+
+    def verzend_beveiliging(self):
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("X-Frame-Options", "SAMEORIGIN")
+        self.send_header("Referrer-Policy", "no-referrer")
+
     def do_GET(self):
         if self.path == "/" or self.path.startswith("/?"):
-            self.send_html(200, INDEX_HTML)
+            self.send_response(200)
+            data = INDEX_HTML.encode("utf-8", "replace")
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(data)))
+            self.send_header("Content-Security-Policy", self.APP_CSP)
+            self.verzend_beveiliging()
+            self.end_headers()
+            self.wfile.write(data)
             return
         if self.path.startswith("/browse") or self.path.startswith("/form"):
             params = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query,
@@ -1365,6 +874,17 @@ class Handler(BaseHTTPRequestHandler):
             mode = (params.get("mode") or ["volledig"])[0]
             if mode not in ("volledig", "veilig"):
                 mode = "volledig"
+            sessie = self.sessie_id()
+            user_id = None
+            con = connect()
+            try:
+                user = self.auth_user(con)
+                if user:
+                    user_id = user[0]
+            except Exception:
+                pass
+            finally:
+                con.close()
             if self.path.startswith("/form") and target.startswith(("http://", "https://")):
                 extra = []
                 for k, lijst in params.items():
@@ -1381,7 +901,7 @@ class Handler(BaseHTTPRequestHandler):
                                "<h3 style='font-family:system-ui'>Ongeldig adres</h3>"
                                "<p><a href='/'>Terug naar Nieuwsearch</a></p>")
                 return
-            self.dien_pagina(target, mode)
+            self.dien_pagina(target, mode, sessie=sessie, user_id=user_id)
             return
         if self.path.startswith("/search"):
             params = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
@@ -1401,13 +921,13 @@ class Handler(BaseHTTPRequestHandler):
                 con.close()
             try:
                 self.send_json(200, {"results": nieuwsearch(q, user_id)})
-            except Exception as exc:
-                self.send_json(502, {"error": "Zoeken mislukt: " + str(exc)})
+            except Exception:
+                self.send_json(502, {"error": "Zoeken mislukt, probeer het opnieuw."})
             return
         if self.path.startswith("/favicon"):
             params = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
             host = (params.get("u") or [""])[0].strip().lower()
-            if not re.fullmatch(r"[a-z0-9.-]+", host) or ".." in host:
+            if not re.fullmatch(r"[a-z0-9.-]+", host) or ".." in host or is_private_host(host):
                 self.send_response(400)
                 self.send_header("Content-Length", "0")
                 self.end_headers()
@@ -1476,6 +996,17 @@ class Handler(BaseHTTPRequestHandler):
             mode = (params.get("mode") or ["volledig"])[0]
             if mode not in ("volledig", "veilig"):
                 mode = "volledig"
+            sessie = self.sessie_id()
+            user_id = None
+            con = connect()
+            try:
+                user = self.auth_user(con)
+                if user:
+                    user_id = user[0]
+            except Exception:
+                pass
+            finally:
+                con.close()
             if not target.startswith(("http://", "https://")):
                 self.send_html(400, "<h3 style='font-family:system-ui'>Ongeldig adres</h3>")
                 return
@@ -1485,13 +1016,18 @@ class Handler(BaseHTTPRequestHandler):
                 length = 0
             inhoud = self.rfile.read(min(length, MAX_BODY)) if length > 0 else None
             self.dien_pagina(target, mode, method="POST", body=inhoud,
-                             content_type=self.headers.get("Content-Type", ""))
+                             content_type=self.headers.get("Content-Type", ""),
+                             sessie=sessie, user_id=user_id)
             return
         con = connect()
         try:
             path = self.path.rstrip("/")
             body = self.read_json() or {}
             if path == "/api-key":
+                user = self.auth_user(con)
+                if not user:
+                    self.send_json(401, {"error": "log eerst in om de AI-sleutel te beheren"})
+                    return
                 key = str(body.get("key", "")).strip()
                 if len(key) < 10:
                     self.send_json(400, {"error": "dat lijkt geen geldige sleutel"})
@@ -1504,6 +1040,10 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json(200, {"ok": True})
                 return
             if path == "/ask":
+                user = self.auth_user(con)
+                if not user:
+                    self.send_json(401, {"error": "log eerst in om de AI-assistent te gebruiken"})
+                    return
                 prompt = str(body.get("prompt", ""))[:4000]
                 if not prompt:
                     self.send_json(400, {"error": "lege vraag"})
@@ -1513,10 +1053,13 @@ class Handler(BaseHTTPRequestHandler):
                 except urllib.error.HTTPError as exc:
                     self.send_json(502, {"error": "LLM-api gaf fout " + str(exc.code)
                                                + " (controleer je API-sleutel)"})
-                except Exception as exc:
-                    self.send_json(502, {"error": str(exc)})
+                except Exception:
+                    self.send_json(502, {"error": "de AI-assistent is nu niet bereikbaar, probeer het later opnieuw"})
                 return
             if path == "/register":
+                if not toegestaan("reg:" + self.client_address[0]):
+                    self.send_json(429, {"error": "te veel pogingen, probeer het later opnieuw"})
+                    return
                 username = str(body.get("username", "")).strip()
                 password = str(body.get("password", ""))
                 if not re.fullmatch(r"[A-Za-z0-9_.-]{3,40}", username):
@@ -1529,8 +1072,9 @@ class Handler(BaseHTTPRequestHandler):
                 token = secrets.token_hex(32)
                 try:
                     con.execute(
-                        "INSERT INTO users (username, pwhash, salt, token) VALUES (?, ?, ?, ?)",
-                        (username, hash_password(password, salt), salt, token))
+                        "INSERT INTO users (username, pwhash, salt, token, token_hash, token_created) "
+                        "VALUES (?, ?, ?, NULL, ?, datetime('now'))",
+                        (username, hash_password(password, salt), salt, hash_token(token)))
                     con.commit()
                 except sqlite3.IntegrityError:
                     self.send_json(409, {"error": "gebruikersnaam bestaat al"})
@@ -1538,12 +1082,23 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json(201, {"ok": True, "token": token})
                 return
             if path == "/login":
-                row = con.execute("SELECT id, pwhash, salt, token FROM users WHERE username = ?",
+                if not toegestaan("log:" + self.client_address[0]):
+                    self.send_json(429, {"error": "te veel inlogpogingen, probeer het over 5 minuten opnieuw"})
+                    return
+                row = con.execute("SELECT id, pwhash, salt FROM users WHERE username = ?",
                                   (str(body.get("username", "")),)).fetchone()
-                if not row or hash_password(str(body.get("password", "")), row[2]) != row[1]:
+                if not row or not secrets.compare_digest(
+                        hash_password(str(body.get("password", "")), row[2]), row[1]):
                     self.send_json(401, {"error": "verkeerde inloggegevens"})
                     return
-                self.send_json(200, {"ok": True, "token": row[3]})
+                # Nieuw token bij elke login (oude sessies vervallen niet meteen,
+                # maar hetzelfde token wordt nooit opnieuw uitgegeven)
+                token = secrets.token_hex(32)
+                con.execute(
+                    "UPDATE users SET token = NULL, token_hash = ?, token_created = datetime('now') "
+                    "WHERE id = ?", (hash_token(token), row[0]))
+                con.commit()
+                self.send_json(200, {"ok": True, "token": token})
                 return
             user = self.auth_user(con)
             if not user:
@@ -1565,8 +1120,8 @@ class Handler(BaseHTTPRequestHandler):
                 return
             if path == "/history":
                 url = str(body.get("url", "")).strip()
-                if not url:
-                    self.send_json(400, {"error": "url ontbreekt"})
+                if not url.startswith(("http://", "https://")):
+                    self.send_json(400, {"error": "url moet met http(s):// beginnen"})
                     return
                 con.execute("INSERT INTO history (user_id, title, url) VALUES (?, ?, ?)",
                             (user[0], str(body.get("title", ""))[:200], url))

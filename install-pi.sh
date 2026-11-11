@@ -72,13 +72,23 @@ fi
 if [ -n "$BROWSER" ]; then
   FLAGS="--no-sandbox --disable-dev-shm-usage --no-first-run --no-default-browser-check --window-size=1280,720 --window-position=0,0 --autoplay-policy=no-user-gesture-required"
   case "$BROWSER" in *epiphany*) FLAGS="--new-window";; esac
+  # VNC-wachtwoord: zonder wachtwoord kan iedereen op het netwerk de echte
+  # browser (en dus al jouw sessies) overnemen. Het wachtwoord staat in
+  # "$DEST/vnc-wachtwoord.txt" en wordt hieronder getoond.
+  if [ -f "$DEST/vnc-wachtwoord.txt" ]; then
+    VNC_PW=$(cat "$DEST/vnc-wachtwoord.txt")
+  else
+    VNC_PW=$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c 12)
+    echo "$VNC_PW" > "$DEST/vnc-wachtwoord.txt"
+    chmod 600 "$DEST/vnc-wachtwoord.txt"
+  fi
   cat > "$DEST/echte-browser.sh" <<RUN
 #!/usr/bin/env bash
 Xvfb :99 -screen 0 1280x720x24 -nolisten tcp &
 sleep 2
 DISPLAY=:99 "$BROWSER" $FLAGS "http://localhost:8765/" &
 sleep 3
-x11vnc -display :99 -forever -shared -localhost -nopw -quiet &
+x11vnc -display :99 -forever -shared -localhost -passwd "$VNC_PW" -quiet &
 exec websockify --web /usr/share/novnc 0.0.0.0:6080 localhost:5900
 RUN
   chmod +x "$DEST/echte-browser.sh"
@@ -122,6 +132,7 @@ echo ""
 echo "   Newly openen:      http://$IP:8765/"
 if [ -n "$BROWSER" ]; then
   echo "   Echte browser:     http://$IP:6080/vnc.html?autoconnect=true&resize=scale"
+  echo "   VNC-wachtwoord:    $VNC_PW  (ook in $DEST/vnc-wachtwoord.txt)"
   echo "   (of tik in Newly op de Tv-knop bovenin)"
 fi
 echo ""

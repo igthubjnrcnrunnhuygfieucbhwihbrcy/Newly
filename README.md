@@ -1,10 +1,10 @@
-# Climora  Eigen Browser met AI-Agent
+# Climora — Eigen Browser met AI-Agent
 
-**Climora** is een eigen, Chromium-gebaseerde browser met een ingebouwde AI-agent. Local-first: het browsen gebeurt volledig op de hardware van de gebruiker (laptop/telefoon). Een Raspberry Pi 5 doet optioneel de rol van sync-server  zoals Google en Brave dat voor hun browser doen, maar dan bij jou thuis.
+**Climora** is een eigen, Chromium-gebaseerde browser met een ingebouwde AI-agent. Local-first: het browsen gebeurt volledig op de hardware van de gebruiker (laptop/telefoon). Een Raspberry Pi 5 doet optioneel de rol van sync-server — zoals Google en Brave dat voor hun browser doen, maar dan bij jou thuis.
 
-## [1mNieuwe Functionaliteit [0m
+## Nieuwe Functionaliteit 
 
-### [32m✨ Verbeterde UI & UX[0m
+### ✨ Verbeterde UI & UX
 - **Consistentere stijling** met moderne kleurenschema's
 - **Betere pictogrammen** met Font Awesome 6.5.1
 - **Verbeterd tabbeheer** met favicons op basis van URL
@@ -12,8 +12,8 @@
 - **Responsive design** voor betere mobiele ervaring
 - **Toast notificaties** voor feedback aan de gebruiker
 
-### [36m🤖 Multi-Provider AI Gateway[0m
-De gateway ondersteunt nu **8 verschillende LLM providers**:
+### 🤖 Multi-Provider AI Gateway
+De gateway ondersteunt **7 LLM providers**:
 
 | Provider | Modellen | API Type |
 |----------|----------|----------|
@@ -27,30 +27,30 @@ De gateway ondersteunt nu **8 verschillende LLM providers**:
 
 **Nieuwe Gateway Endpoints:**
 ```
-GET  /providers          Lijst van ondersteunde providers
-GET  /models             Beschikbare modellen per provider
-GET  /config             Huidige configuratie bekijken
-POST /config/keys       Beheer API-sleutels per provider
-POST /chat              Chat-completie met geschiedenis
+GET  /providers         — Lijst van ondersteunde providers
+GET  /models            — Beschikbare modellen per provider
+GET  /config            — Huidige configuratie bekijken
+POST /config/keys      — Beheer API-sleutels per provider
+POST /chat             — Chat-completie met geschiedenis
 ```
 
-### [33m🔌 Eigen REST API Server[0m
+### 🔌 Eigen REST API Server
 
 Nieuwe **api_server.py** biedt een volwaardige REST API voor externe toegang:
 
 **Endpoints:**
 ```
-GET  /health            Server status
-GET  /api              API informatie
-GET  /api/bookmarks    Haal bladwijzers op
-POST /api/bookmarks    Voeg bladwijzer toe
-GET  /api/history       Haal geschiedenis op
-POST /api/history       Voeg geschiedenis toe
-POST /api/ask          Stel vraag aan AI (doorverwijst naar gateway)
-POST /api/clients      Maak API client aan (admin)
-GET  /api/services     Lijst externe services
-POST /api/services     Voeg externe service toe
-GET  /api/stats        Statistieken
+GET  /health           — Server status
+GET  /api             — API informatie
+GET  /api/bookmarks   — Haal bladwijzers op
+POST /api/bookmarks   — Voeg bladwijzer toe
+GET  /api/history      — Haal geschiedenis op
+POST /api/history      — Voeg geschiedenis toe
+POST /api/ask         — Stel vraag aan AI (doorverwijst naar gateway)
+POST /api/clients     — Maak API client aan (admin)
+GET  /api/services    — Lijst externe services
+POST /api/services    — Voeg externe service toe
+GET  /api/stats       — Statistieken
 ```
 
 **Authentatie:**
@@ -60,31 +60,18 @@ GET  /api/stats        Statistieken
 **Start de API Server:**
 ```bash
 cd sync-server
-export CLIMORA_API_KEY="jouw-geheime-sleutel"
-export CLIMORA_API_PORT=8767
+export NEWLY_API_KEY="jouw-geheime-sleutel"
+export NEWLY_API_PORT=8767
 python3 api_server.py
 ```
 
-### [35m🌐 Externe Services & Integraties[0m
-
-De **extensions.py** module biedt uitbreidingen voor:
-
-- **Externe Service Beheer**
-  - Nieuws aggregators (NewsAPI)
-  - Weerservices (OpenWeatherMap)
-  - Vertaalservices (Google Translate)
-  - Sociale media integraties
-  - Cloud opslag (Google Drive, Dropbox)
-
-- **Webhook Ondersteuning**
-  - Event-driven notificaties
   - Ondersteunde events: `bookmark.added`, `bookmark.removed`, `history.added`, `user.login`, `ai.request`, etc.
 
 - **Content Aggregatie**
   - Zoek in meerdere bronnen tegelijk
   - Resultaten combineren en sorteren
 
-### [34m📱 Verbeterde Web UI[0m
+### 📱 Verbeterde Web UI
 
 De **web/index.html** biedt nu:
 - **AI Assistent Interface** met gespreksgeschiedenis
@@ -116,13 +103,12 @@ De **web/index.html** biedt nu:
 
 ## Onderdelen
 
-- **browser/**  Electron-schil met tabs, adresbalk, AI-instellingen en CDP-agenthook
-- **agent/**  Ontwerp voor de MCP-server die de LLM toegang tot de browser geeft
-- **gateway/**  Lokale LLM-gateway met ondersteuning voor meerdere providers
-- **sync-server/**  Climora Sync: werkende multi-user sync-service + webproxy
-- **sync-server/api_server.py**  Eigen REST API voor externe integraties
-- **sync-server/extensions.py**  Uitbreidingen voor externe services
-- **web/**  Web-UI met AI-assistent en provider selectie
+- **browser/** — Electron-schil met tabs, adresbalk, AI-instellingen en CDP-agenthook
+- **agent/** — Ontwerp voor de MCP-server die de LLM toegang tot de browser geeft
+- **gateway/** — Lokale LLM-gateway met ondersteuning voor meerdere providers
+- **sync-server/** — Climora Sync: werkende multi-user sync-service + webproxy
+- **sync-server/api_server.py** — Eigen REST API voor externe integraties
+- **web/** — Web-UI met AI-assistent en provider selectie
 
 ## Snel Starten
 
@@ -246,14 +232,14 @@ Zie ROADMAP.md voor de fasen 1 t/m 6.
 ### Gateway API (poort 8766)
 
 ```
-GET  /health               Server status
-GET  /providers           Lijst van ondersteunde providers
-GET  /models              Beschikbare modellen per provider
-GET  /config              Huidige configuratie
-POST /ask                Stel een vraag
-POST /summarize          Vat tekst samen
-POST /chat               Chat-completie
-POST /config/keys        Beheer API-sleutels
+GET  /health              — Server status
+GET  /providers          — Lijst van ondersteunde providers
+GET  /models             — Beschikbare modellen per provider
+GET  /config             — Huidige configuratie
+POST /ask               — Stel een vraag
+POST /summarize         — Vat tekst samen
+POST /chat              — Chat-completie
+POST /config/keys       — Beheer API-sleutels
 ```
 
 **Voorbeeld: Stel een vraag aan Mistral**
@@ -270,17 +256,17 @@ curl -X POST http://localhost:8766/ask \
 ### API Server (poort 8767)
 
 ```
-GET  /health               Server status
-GET  /api                 API informatie
-GET  /api/bookmarks       Haal bladwijzers op
-POST /api/bookmarks       Voeg bladwijzer toe
-GET  /api/history          Haal geschiedenis op
-POST /api/history          Voeg geschiedenis toe
-POST /api/ask             Stel vraag aan AI
-POST /api/clients         Maak API client aan (admin)
-GET  /api/services        Lijst externe services
-POST /api/services        Voeg externe service toe
-GET  /api/stats           Statistieken
+GET  /health              — Server status
+GET  /api                — API informatie
+GET  /api/bookmarks      — Haal bladwijzers op
+POST /api/bookmarks      — Voeg bladwijzer toe
+GET  /api/history         — Haal geschiedenis op
+POST /api/history         — Voeg geschiedenis toe
+POST /api/ask            — Stel vraag aan AI
+POST /api/clients        — Maak API client aan (admin)
+GET  /api/services       — Lijst externe services
+POST /api/services       — Voeg externe service toe
+GET  /api/stats          — Statistieken
 ```
 
 **Voorbeeld: Voeg een bladwijzer toe**
@@ -417,6 +403,59 @@ export CLIMORA_API_KEY="jouw-api-sleutel"
 python3 sync-server/api_server.py
 ```
 
+## Tests & CI
+
+De repository heeft een test-suite (alleen Python-standaardbibliotheek) die de
+beveiligingskritieke onderdelen dekt: SSRF-blokkering, authenticatie,
+token-rotatie, rate limiting, de gateway-beschermingen en de REST-API.
+
+```bash
+python3 -m unittest discover -s tests -v
+```
+
+GitHub Actions draait bij elke push/PR: syntax-controle (Python, JavaScript,
+shell) en de volledige test-suite (`.github/workflows/ci.yml`).
+
 ## Contact
 
 Voor vragen en ondersteuning, bezoek de [GitHub repository](https://github.com/igthubjnrcnrunnhuygfieucbhwihbrcy/Climora).
+
+## Beveiliging & Privacy
+
+### Wat is beveiligd
+
+- **SSRF-bescherming**: de proxy (/browse, /form, favicons) weigert interne en
+  private adressen (localhost, het lokale netwerk, 169.254.x.x-metadata).
+- **Sessietokens** worden gehasht (SHA-256) opgeslagen, verlopen na 30 dagen en
+  worden bij elke login vernieuwd. Wachtwoorden: PBKDF2-SHA256 (120k iteraties)
+  met constante-tijd-vergelijking.
+- **Rate limiting** op login/registratie (brute-force) en op de REST-API.
+- **CSP-sandbox**: geproxiede pagina's draaien altijd in een ondoorzichtig
+  origin, ook buiten het iframe — websites kunnen nooit bij de app-tokens.
+- **AI en API-sleutel beheer** vereisen een ingelogde account; de sleutel staat
+  met permissies 0600 op de eigen Pi.
+- **Gateway**: alleen bereikbaar op 127.0.0.1, met DNS-rebinding-bescherming
+  (Host-check) en Origin/Referer-controle; sleutelwijzigingen kunnen optioneel
+  een `GATEWAY_TOKEN` vereisen. Client-secrets van de REST-API worden gehasht
+  opgeslagen.
+- **Cookie-jar per sessie** (niet gedeeld tussen gebruikers) en de zoekindex is
+  per gebruiker: wat jij bezoekt is niet doorzoekbaar voor anderen.
+- **XSS**: tabtitels, geschiedenis en AI-antwoorden worden ge-escape in de UI;
+  de Electron-shell accepteert alleen http(s)-URL's en gebruikt
+  contextIsolation + sandbox.
+- **Schermdeling (noVNC)** gebruikt een gegenereerd VNC-wachtwoord (staat in
+  `~/zelfsync/vnc-wachtwoord.txt`).
+- **Privacy**: de REST-API logt geen IP-adressen; de gateway logt niets.
+
+### Optionele instellingen
+
+```bash
+# Gateway: extra wachtwoord voor sleutelbeheer
+export GATEWAY_TOKEN="jouw-token"
+
+# Gateway: web-UI op de Pi toegang geven tot de gateway op je eigen apparaat
+export GATEWAY_ALLOWED_ORIGINS="http://192.168.1.50:8765"
+
+# REST-API: vaste URL van de gateway voor /api/ask
+export NEWLY_GATEWAY_URL="http://127.0.0.1:8766/ask"
+```

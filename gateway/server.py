@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""ZelfGateway  lokale LLM-gateway voor Climora.
+"""ZelfGateway — lokale LLM-gateway voor Climora.
 
 De browser praat alleen met deze gateway (localhost); de gateway praat met de
 cloud-LLM-API met JOUW API-sleutel. Zo blijft de sleutel op het apparaat en is
@@ -11,16 +11,18 @@ Start:      python3 server.py      (poort 8766, alleen 127.0.0.1)
 
 Endpoints:
   GET  /health
-  GET  /providers          Lijst van ondersteunde providers
-  GET  /models             Beschikbare modellen per provider
-  GET  /config             Huidige configuratie bekijken
-  POST /ask               Stel een vraag aan de LLM
-  POST /summarize         Vat tekst samen
-  POST /chat              Chat-completie met geschiedenis
-  POST /config/keys       Beheer API-sleutels per provider
+  GET  /providers         — Lijst van ondersteunde providers
+  GET  /models            — Beschikbare modellen per provider
+  GET  /config            — Huidige configuratie bekijken
+  POST /ask              — Stel een vraag aan de LLM
+  POST /summarize        — Vat tekst samen
+  POST /chat             — Chat-completie met geschiedenis
+  POST /config/keys      — Beheer API-sleutels per provider
 """
 import json
 import os
+import secrets
+import urllib.parse
 import urllib.request
 import urllib.error
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -32,6 +34,15 @@ MODEL = os.environ.get("LLM_MODEL", "mistral-small-latest")
 PROVIDER = os.environ.get("LLM_PROVIDER", "mistral").lower()
 MAX_PROMPT = 60_000
 PORT = int(os.environ.get("GATEWAY_PORT", "8766"))
+# Optioneel extra wachtwoord: als GATEWAY_TOKEN is gezet moeten sleutelwijzigingen
+# dit meesturen in de X-Gateway-Token-header.
+GATEWAY_TOKEN = os.environ.get("GATEWAY_TOKEN", "")
+LOKALE_HOSTS = ("127.0.0.1", "localhost", "::1")
+# Toegestane externe oorsprongen voor de web-UI, bijv.
+# GATEWAY_ALLOWED_ORIGINS="http://192.168.1.50:8765" (komma-gescheiden). Leeg = alleen lokaal.
+ALLOWED_ORIGINS = tuple(
+    o.strip().rstrip("/").lower()
+    for o in os.environ.get("GATEWAY_ALLOWED_ORIGINS", "").split(",") if o.strip())
 
 # Configuratiebestand voor API-sleutels per provider
 CONFIG_DIR = Path(__file__).resolve().parent / "config"
@@ -222,9 +233,59 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(code)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(data)))
-        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Origin", self.cors_oorsprong())
+        self.send_header("X-Content-Type-Options", "nosniff")
         self.end_headers()
         self.wfile.write(data)
+
+    def lokale_host(self):
+        """DNS-rebinding-bescherming: de Host-header moet lokaal zijn."""
+        host = (self.headers.get("Host") or "").split(":")[0].strip("[]").lower()
+        return host in LOKALE_HOSTS
+
+    def oorsprong(self):
+        """Origin/Referer-oorsprong of None."""
+        for kop in ("Origin", "Referer"):
+            waarde = self.headers.get(kop, "")
+            if not waarde:
+                continue
+            try:
+                delen = urllib.parse.urlsplit(waarde)
+            except ValueError:
+                return None
+            if not delen.scheme or not delen.hostname:
+                return None
+            return (delen.scheme + "://" + delen.hostname
+                    + (":" + str(delen.port) if delen.port else "")).lower()
+        return None
+
+    def oorsprong_toegestaan(self):
+        """Geen oorsprong (niet-browser), lokaal, of expliciet toegestaan."""
+        o = self.oorsprong()
+        if o is None:
+            return True
+        try:
+            host = urllib.parse.urlsplit(o).hostname or ""
+        except ValueError:
+            return False
+        if host.lower() in LOKALE_HOSTS:
+            return True
+        return o in ALLOWED_ORIGINS
+
+    def cors_oorsprong(self):
+        """ACAO-waarde: alleen de eigen (lokale/toegestane) oorsprong echoën."""
+        o = self.oorsprong()
+        if o and self.oorsprong_toegestaan():
+            return o
+        lokaal = "http://localhost" + (":" + str(PORT) if PORT not in (80,) else "")
+        return lokaal
+
+    def token_ok(self, body):
+        """Optioneel GATEWAY_TOKEN checken."""
+        if not GATEWAY_TOKEN:
+            return True
+        meegegeven = self.headers.get("X-Gateway-Token", body.get("gateway_token", ""))
+        return bool(meegegeven) and secrets.compare_digest(meegegeven, GATEWAY_TOKEN)
 
     def read_json(self):
         try:
@@ -239,6 +300,9 @@ class Handler(BaseHTTPRequestHandler):
             return None
 
     def do_GET(self):
+        if not self.lokale_host():
+            self.send_json(403, {"error": "alleen lokale toegang"})
+            return
         if self.path == "/health":
             self.send_json(200, {
                 "status": "ok",
@@ -262,6 +326,10 @@ class Handler(BaseHTTPRequestHandler):
                 "provider": provider
             })
         elif self.path == "/config":
+            # Sleutelbeheer-info: alleen voor lokale/toegestane oorsprong
+            if not self.oorsprong_toegestaan():
+                self.send_json(403, {"error": "alleen lokale toegang"})
+                return
             # Return current configuration
             provider_keys = {}
             for provider in SUPPORTED_PROVIDERS:
@@ -287,9 +355,19 @@ class Handler(BaseHTTPRequestHandler):
         body = self.read_json() or {}
         route = self.path.rstrip("/")
         
+        # Cross-site bescherming: een website in de browser mag de gateway
+        # nooit aanroepen (Host-check stopt DNS-rebinding, Origin/Referer-check
+        # stopt verzoeken vanaf niet-toegestane webpagina's).
+        if not self.lokale_host() or not self.oorsprong_toegestaan():
+            self.send_json(403, {"error": "alleen lokale toegang"})
+            return
+        
         try:
             # Handle API key management
             if route == "/config/keys":
+                if not self.token_ok(body):
+                    self.send_json(401, {"error": "gateway-token vereist (X-Gateway-Token)"})
+                    return
                 action = body.get("action", "get")
                 
                 if action == "set":
@@ -351,69 +429,60 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json(500, {"error": f"Geen API-sleutel ingesteld voor provider '{provider}'. Gebruik /config/keys om een sleutel toe te voegen."})
                 return
             
-            # Store API key temporarily for this request
-            temp_api_key = API_KEY
-            API_KEY = api_key
-            
-            try:
-                if route == "/ask":
-                    system = str(body.get("system",
-                        "Je bent de assistent van de Climora-browser. Antwoord kort en in de taal van de gebruiker."))
-                    messages = [{"role": "system", "content": system}]
-                    context = str(body.get("context", ""))[:MAX_PROMPT]
-                    if context:
-                        messages.append({"role": "system",
-                                         "content": "Context van de huidige pagina:" + context})
-                    messages.append({"role": "user", "content": str(body.get("prompt", ""))[:MAX_PROMPT]})
+            if route == "/ask":
+                system = str(body.get("system",
+                    "Je bent de assistent van de Climora-browser. Antwoord kort en in de taal van de gebruiker."))
+                messages = [{"role": "system", "content": system}]
+                context = str(body.get("context", ""))[:MAX_PROMPT]
+                if context:
+                    messages.append({"role": "system",
+                                     "content": "Context van de huidige pagina:" + context})
+                messages.append({"role": "user", "content": str(body.get("prompt", ""))[:MAX_PROMPT]})
                     
-                    answer = call_llm(messages, provider, model)
-                    self.send_json(200, {"answer": answer, "provider": provider, "model": model})
-                    return
+                answer = call_llm(messages, provider, model)
+                self.send_json(200, {"answer": answer, "provider": provider, "model": model})
+                return
                 
-                if route == "/summarize":
-                    text = str(body.get("text", ""))[:MAX_PROMPT]
-                    try:
-                        max_words = int(body.get("max_words", 120))
-                    except (TypeError, ValueError):
-                        max_words = 120
+            if route == "/summarize":
+                text = str(body.get("text", ""))[:MAX_PROMPT]
+                try:
+                    max_words = int(body.get("max_words", 120))
+                except (TypeError, ValueError):
+                    max_words = 120
                     
-                    system_prompt = (f"Vat de tekst samen in max {max_words} woorden, "
-                                   "in de taal van de tekst. Wees accuraat en beknopt.")
-                    messages = [
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": text}
-                    ]
-                    answer = call_llm(messages, provider, model)
-                    self.send_json(200, {"answer": answer, "provider": provider, "model": model})
-                    return
+                system_prompt = (f"Vat de tekst samen in max {max_words} woorden, "
+                               "in de taal van de tekst. Wees accuraat en beknopt.")
+                messages = [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": text}
+                ]
+                answer = call_llm(messages, provider, model)
+                self.send_json(200, {"answer": answer, "provider": provider, "model": model})
+                return
                 
-                if route == "/chat":
-                    # Chat completion with conversation history
-                    messages = body.get("messages", [])
-                    if not messages:
-                        self.send_json(400, {"error": "messages ontbreekt"})
-                        return
-                    
-                    # Limit message count to prevent token overflow
-                    if len(messages) > 20:
-                        messages = messages[-20:]
-                    
-                    answer = call_llm(messages, provider, model)
-                    self.send_json(200, {
-                        "answer": answer,
-                        "provider": provider,
-                        "model": model
-                    })
+            if route == "/chat":
+                # Chat completion with conversation history
+                messages = body.get("messages", [])
+                if not messages:
+                    self.send_json(400, {"error": "messages ontbreekt"})
                     return
+                    
+                # Limit message count to prevent token overflow
+                if len(messages) > 20:
+                    messages = messages[-20:]
+                    
+                answer = call_llm(messages, provider, model)
+                self.send_json(200, {
+                    "answer": answer,
+                    "provider": provider,
+                    "model": model
+                })
+                return
                 
-                self.send_json(404, {"error": "onbekend endpoint"})
-            
-            finally:
-                # Restore original API key
-                API_KEY = temp_api_key
+            self.send_json(404, {"error": "onbekend endpoint"})
         
         except Exception as exc:
-            self.send_json(502, {"error": str(exc)})
+            self.send_json(502, {"error": "LLM-api onbereikbaar: " + type(exc).__name__})
 
 
 def call_llm(messages, provider_name=None, model=None):

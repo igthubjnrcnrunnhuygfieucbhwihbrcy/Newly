@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Syntax-controle
+        run: python3 -m py_compile sync-server/server.py sync-server/api_server.py gateway/server.py
+      - name: Tests
+        run: python3 -m unittest discover -s tests -v
+
+  javascript:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Syntax-controle
+        run: |
+          node --check browser/main.js
+          node --check browser/preload.js
+      - name: Shell-controle
+        run: bash -n install-pi.sh
