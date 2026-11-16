@@ -22,10 +22,12 @@ Service:    zie install-pi.sh (systemd)
 import gzip
 import hashlib
 import html
+import ipaddress
 import json
 import os
 import re
 import secrets
+import socket
 import sqlite3
 import threading
 import urllib.error
@@ -43,6 +45,93 @@ PORT = int(os.environ.get("CLIMORA_PORT", "8765"))
 LLM_MODEL = os.environ.get("LLM_MODEL", "mistral-small-latest")
 UA_STR = ("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
           "(KHTML, like Gecko) Chrome/124.0 Safari/537.36 NieuwsearchBrowser/0.9")
+
+
+# ============================================================================
+# BEVEILIGING: SSRF BESCHERMING
+# ============================================================================
+
+def is_safe_url(url, allowed_schemes=("http", "https"), block_private_ips=True):
+    """
+    Controleer of een URL veilig is om op te halen.
+    Voorkomt Server-Side Request Forgery (SSRF) aanvallen.
+    
+    Args:
+        url: De URL om te controleren
+        allowed_schemes: Toegestane URL schemas (standaard: http, https)
+        block_private_ips: Blokkeer private/internal IP adressen
+    
+    Returns:
+        bool: True als de URL veilig is, False anders
+    """
+    try:
+        parsed = urllib.parse.urlparse(url)
+        
+        # Controleer schema
+        if parsed.scheme not in allowed_schemes:
+            return False
+        
+        # Controleer of hostname aanwezig is
+        if not parsed.hostname:
+            return False
+        
+        # Controleer op private/internal IP adressen
+        if block_private_ips:
+            try:
+                ip = ipaddress.ip_address(parsed.hostname)
+                if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_multicast:
+                    return False
+            except ValueError:
+                # Niet een IP adres, probeer DNS lookup
+                try:
+                    # Resolve hostname to IP
+                    ip_list = socket.getaddrinfo(parsed.hostname, None)
+                    for family, type_, proto, canonname, sockaddr in ip_list:
+                        ip_str = sockaddr[0]
+                        try:
+                            ip = ipaddress.ip_address(ip_str)
+                            if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_multicast:
+                                return False
+                        except ValueError:
+                            continue
+                except (socket.gaierror, socket.herror, OSError):
+                    # Kan hostname niet resolven, maar dat is niet per se onveilig
+                    pass
+        
+        # Controleer op lokale hostnames
+        localhost_names = ("localhost", "127.0.0.1", "::1", "0.0.0.0")
+        if parsed.hostname.lower() in localhost_names:
+            return False
+        
+        # Controleer op metadata en special URLs
+        if parsed.hostname.startswith(("169.254.", "224.", "255.255.255.255")):
+            return False
+        
+        return True
+        
+    except Exception:
+        # Bij twijfel: blokkeren
+        return False
+
+
+def validate_url_or_raise(url, context=""):
+    """
+    Valideer een URL en gooi een exceptie als deze niet veilig is.
+    
+    Args:
+        url: De URL om te valideren
+        context: Context voor de foutmelding
+    
+    Returns:
+        str: De gevalideerde URL
+    
+    Raises:
+        ValueError: Als de URL niet veilig is
+    """
+    if not is_safe_url(url):
+        raise ValueError(f"Onveilige URL in {context}: {url}")
+    return url
+
 
 INDEX_HTML = """<!DOCTYPE html>
 <html lang="nl">
@@ -755,7 +844,11 @@ def koekjes_opslaan(host, headers):
 def haal_bron(url, method="GET", body=None, content_type=None,
               limiet=MAX_PAGE, timeout=25, extra_headers=None):
     """Ruwe bytes van een bron ophalen (gzip, cookies, ook foutpagina's)."""
-    host = urllib.parse.urlsplit(url).hostname or ""
+    # SSRF BESCHERMING: Valideer URL voordat we een request maken
+    if not is_safe_url(url):
+        raise ValueError(f"Onveilige URL: {url}. Alleen http/https URLs naar publieke servers zijn toegestaan.")
+    
+    host = urllib.parse.urlsplit(url).hostname or """
     headers = {
         "User-Agent": UA_STR,
         "Accept": "*/*",
@@ -814,9 +907,23 @@ def haal_pagina(url, limiet=MAX_PAGE, timeout=20):
 
 
 def zichtbare_tekst(text):
-    text = re.sub(r"(?is)<script\b[^>]*>.*?</script>", " ", text)
-    text = re.sub(r"(?is)<style\b[^>]*>.*?</style>", " ", text)
-    text = re.sub(r"(?is)<[^>]+>", " ", text)
+    """
+    Haal HTML tags uit tekst, inclusief script en style.
+    Gebruikt veilige regex patterns om ReDoS te voorkomen.
+    """
+    # Veilige regex patterns zonder nested quantifiers
+    # Gebruik non-greedy matching met duidelijke grenzen
+    
+    # Verwijder script tags (non-greedy, met duidelijke start/end)
+    text = re.sub(r"<script\b[^>]*>.*?</script>", " ", text, flags=re.IGNORECASE | re.DOTALL)
+    
+    # Verwijder style tags (non-greedy, met duidelijke start/end)
+    text = re.sub(r"<style\b[^>]*>.*?</style>", " ", text, flags=re.IGNORECASE | re.DOTALL)
+    
+    # Verwijder alle andere HTML tags (non-greedy)
+    text = re.sub(r"<[^>]+>", " ", text)
+    
+    # Vervang meerdere whitespaces door een enkele space
     text = re.sub(r"\s+", " ", html.unescape(text)).strip()
     return text
 
@@ -825,7 +932,7 @@ def indexeer(url, pagina, status):
     """Bezochte pagina's opslaan in de eigen Nieuwsearch-index op de Pi."""
     if status >= 400 or not url.startswith(("http://", "https://")):
         return
-    m = re.search(r"(?is)<title[^>]*>(.*?)</title>", pagina)
+    m = re.search(r"<title[^>]*>(.*?)</title>", pagina, flags=re.IGNORECASE | re.DOTALL)
     titel = zichtbare_tekst(m.group(1))[:200] if m else ""
     tekst = zichtbare_tekst(pagina)
     if len(tekst) < 150:
@@ -917,7 +1024,7 @@ def bewerk_urls(text, base, mode, oorsprong):
         if prox:
             return attr + "=" + quote + prox + quote
         return m.group(0)
-    return re.sub(r"(?is)\b(src|href|poster|data-src)\s*=\s*([\"'])(.*?)\2", vervang, text)
+    return re.sub(r"\b(src|href|poster|data-src, flags=re.IGNORECASE)\s*=\s*([\"'], flags=re.IGNORECASE)(.*?, flags=re.IGNORECASE)\2", vervang, text, flags=re.IGNORECASE)
 
 
 def bewerk_srcset(text, base, mode, oorsprong):
@@ -934,7 +1041,7 @@ def bewerk_srcset(text, base, mode, oorsprong):
                                  + urllib.parse.quote(absolute, safe=""))
             delen.append(" ".join(onderdelen))
         return "srcset=" + quote + ",".join(delen) + quote
-    return re.sub(r"(?is)\bsrcset\s*=\s*([\"'])(.*?)\1", vervang, text)
+    return re.sub(r"\bsrcset\s*=\s*([\"'], flags=re.IGNORECASE)(.*?, flags=re.IGNORECASE)\1", vervang, text, flags=re.IGNORECASE)
 
 
 def bewerk_forms(text, base, mode, oorsprong):
@@ -947,14 +1054,14 @@ def bewerk_forms(text, base, mode, oorsprong):
         if prox:
             return "action=" + quote + prox + quote
         return m.group(0)
-    text = re.sub(r"(?is)\baction\s*=\s*([\"'])(.*?)\1", vervang, text)
+    text = re.sub(r"\baction\s*=\s*([\"'], flags=re.IGNORECASE)(.*?, flags=re.IGNORECASE)\1", vervang, text, flags=re.IGNORECASE)
     standaard = (oorsprong + "/form?url="
                  + urllib.parse.quote(base, safe="") + "&amp;mode=" + mode)
 
     def injecteer(m):
         return m.group(0)[:-1] + ' action="' + standaard + '">'
 
-    text = re.sub(r"(?is)<form(?![^>]*\baction\b)[^>]*>", injecteer, text)
+    text = re.sub(r"<form(?![^>]*\baction\b)[^>]*>", injecteer, text, flags=re.IGNORECASE)
     return text
 
 
@@ -1032,15 +1139,15 @@ def bewerk_html(text, final_url, mode, status, oorsprong=""):
     tegen het echte adres en krijg je "404 /browse was not found".
     """
     if mode == "veilig":
-        text = re.sub(r"(?is)<script\b[^>]*>.*?</script>", "", text)
-        text = re.sub(r"(?is)<script\b[^>]*/>", "", text)
-        text = re.sub(r"(?is)\son\w+\s*=\s*(\"[^\"]*\"|'[^']*'|[^\s>]+)", "", text)
+        text = re.sub(r"<script\b[^>]*>.*?</script>", "", text, flags=re.IGNORECASE)
+        text = re.sub(r"<script\b[^>]*/>", "", text, flags=re.IGNORECASE)
+        text = re.sub(r"\son\w+\s*=\s*(\"[^\"]*\"|'[^']*'|[^\s>]+, flags=re.IGNORECASE)", "", text, flags=re.IGNORECASE)
 
     # Meta-CSP en meta-refresh weg: die kloppen niet meer vanaf ons eigen adres
-    text = re.sub(r"(?is)<meta[^>]+http-equiv\s*=\s*[\"']content-security-policy[\"'][^>]*>", "", text)
-    text = re.sub(r"(?is)<meta[^>]+http-equiv\s*=\s*[\"']refresh[\"'][^>]*>", "", text)
+    text = re.sub(r"<meta[^>]+http-equiv\s*=\s*[\"']content-security-policy[\"'][^>]*>", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"<meta[^>]+http-equiv\s*=\s*[\"']refresh[\"'][^>]*>", "", text, flags=re.IGNORECASE)
 
-    mb = re.search(r"(?is)<base[^>]+href=[\"']([^\"']+)[\"']", text)
+    mb = re.search(r"<base[^>]+href=[\"']([^\"']+, flags=re.IGNORECASE)[\"']", text, flags=re.IGNORECASE)
     base = urllib.parse.urljoin(final_url, mb.group(1)) if mb else final_url
     if mb:
         text = text.replace(mb.group(0), "")
@@ -1048,16 +1155,16 @@ def bewerk_html(text, final_url, mode, status, oorsprong=""):
     text = bewerk_urls(text, base, mode, oorsprong)
     text = bewerk_srcset(text, base, mode, oorsprong)
     text = bewerk_forms(text, base, mode, oorsprong)
-    text = re.sub(r"(?is)\s+integrity\s*=\s*([\"']).*?\1", "", text)
+    text = re.sub(r"\s+integrity\s*=\s*([\"'], flags=re.IGNORECASE).*?\1", "", text, flags=re.IGNORECASE)
 
     inject = '<base href="' + html.escape(base) + '">'
-    if not re.search(r"(?is)<meta[^>]+name=[\"']viewport[\"']", text):
+    if not re.search(r"<meta[^>]+name=[\"']viewport[\"']", text, flags=re.IGNORECASE):
         inject = inject + ('<meta name="viewport" '
                             'content="width=device-width, initial-scale=1">')
     if mode == "volledig":
         inject = inject + SHIM_TEMPLATE.replace("__BASE__", json.dumps(base))
-    if re.search(r"(?is)<head[^>]*>", text):
-        text = re.sub(r"(?is)(<head[^>]*>)", lambda m: m.group(1) + inject, text, count=1)
+    if re.search(r"<head[^>]*>", text, flags=re.IGNORECASE):
+        text = re.sub(r"(<head[^>]*>, flags=re.IGNORECASE)", lambda m: m.group(1, flags=re.IGNORECASE) + inject, text, count=1, flags=re.IGNORECASE)
     else:
         text = inject + text
 
@@ -1117,7 +1224,7 @@ def wiki_zoek(q):
     for item in data.get("query", {}).get("search", []):
         titel = item.get("title", "")
         url = "https://nl.wikipedia.org/wiki/" + urllib.parse.quote(titel.replace(" ", "_"))
-        snippet = re.sub(r"(?is)<[^>]+>", "", item.get("snippet", ""))
+        snippet = re.sub(r"<[^>]+>", "", item.get("snippet", "", flags=re.IGNORECASE), flags=re.IGNORECASE)
         resultaten.append({"title": titel + " - Wikipedia", "url": url,
                            "snippet": snippet[:300], "bron": "Wikipedia (nl)"})
     return resultaten

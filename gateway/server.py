@@ -19,12 +19,43 @@ Endpoints:
   POST /chat              Chat-completie met geschiedenis
   POST /config/keys       Beheer API-sleutels per provider
 """
+import ipaddress
 import json
 import os
+import socket
+import urllib.parse
 import urllib.request
 import urllib.error
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+
+
+
+
+def is_safe_api_url(url):
+    """Valideer API URL om SSRF te voorkomen."""
+    try:
+        parsed = urllib.parse.urlparse(url)
+        if parsed.scheme not in ('http', 'https'):
+            return False
+        if not parsed.hostname:
+            return False
+        
+        # Blokkeer private IP adressen
+        try:
+            ip = ipaddress.ip_address(parsed.hostname)
+            if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_multicast:
+                return False
+        except ValueError:
+            pass
+        
+        # Blokkeer localhost
+        if parsed.hostname.lower() in ('localhost', '127.0.0.1', '::1', '0.0.0.0'):
+            return False
+        
+        return True
+    except Exception:
+        return False
 
 API_URL = os.environ.get("LLM_API_URL", "https://api.mistral.ai/v1/chat/completions")
 API_KEY = os.environ.get("LLM_API_KEY", "")
@@ -420,6 +451,10 @@ def call_llm(messages, provider_name=None, model=None):
     """Call the LLM API with the given messages."""
     config = get_provider_config(provider_name)
     api_url = config["api_url"]
+    # SSRF BESCHERMING: valideer API URL
+    if not is_safe_api_url(api_url):
+        raise ValueError(f"Onveilige API URL: {api_url}")
+
     api_key = get_api_key_for_provider(provider_name)
     
     # Replace {model} placeholder in URL if present

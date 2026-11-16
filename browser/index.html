@@ -974,7 +974,13 @@
     </div>
   </div>
 
-  <script>
+  <script>function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+
     const api = window.nieuw;
     const tabsEl = document.getElementById('tabs');
     const urlEl = document.getElementById('url');
@@ -1161,7 +1167,7 @@
         loadingEl.innerHTML = response;
         
       } catch (err) {
-        loadingEl.innerHTML = '<i class="fas fa-exclamation-triangle" style="color: var(--error);"></i> Fout: ' + err.message;
+        loadingEl.innerHTML = '<i class="fas fa-exclamation-triangle" style="color: var(--error);"></i> Fout: ' + escapeHtml(err.message);
       }
     }
 
