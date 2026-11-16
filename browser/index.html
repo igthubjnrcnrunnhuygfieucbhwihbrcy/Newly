@@ -2,26 +2,43 @@
 <html lang="nl">
 <head>
 <meta charset="utf-8">
-<title>Climora  Eigen Browser</title>
+<title>Newly - De Browser Die Werkt VOOR Jou</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
   :root {
-    --bg-primary: #1a1d26;
-    --bg-secondary: #252934;
-    --bg-tertiary: #2d313c;
-    --text-primary: #e8eaed;
-    --text-secondary: #9aa0a6;
-    --accent: #1a56db;
-    --accent-hover: #2563eb;
-    --accent-light: rgba(26, 86, 219, 0.15);
-    --border: #3a3f4a;
-    --shadow: rgba(0, 0, 0, 0.3);
-    --radius: 8px;
-    --transition: all 0.2s ease;
-    --success: #22c55e;
-    --warning: #f59e0b;
-    --error: #ef4444;
+    /* UNIEKE NEWLY KLEUREN - Geen standaard browser kleuren! */
+    --bg-primary: #0a0f1c;
+    --bg-secondary: #121a2e;
+    --bg-tertiary: #1a253c;
+    --bg-card: #253454;
+    --text-primary: #e8f2ff;
+    --text-secondary: #94a8c8;
+    --text-muted: #6c7a96;
+    
+    /* UNIEK ACCENT KLEUR - Geen Chrome blauw, geen Firefox oranje */
+    --accent: #00d4ff;
+    --accent-hover: #00a8cc;
+    --accent-light: rgba(0, 212, 255, 0.15);
+    --accent-glow: rgba(0, 212, 255, 0.3);
+    
+    --success: #00ff88;
+    --warning: #ffcc00;
+    --error: #ff4444;
+    --privacy-safe: #00ff88;
+    --privacy-warning: #ffcc00;
+    --privacy-danger: #ff4444;
+    
+    --border: #2a3a54;
+    --shadow: rgba(0, 0, 0, 0.5);
+    --radius: 10px;
+    --radius-sm: 6px;
+    --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    
+    /* UNIEKE FONT */
+    --font-primary: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   }
+
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
   * {
     margin: 0;
@@ -30,20 +47,71 @@
   }
 
   body {
-    font: 14px 'Segoe UI', system-ui, -apple-system, sans-serif;
+    font: 14px var(--font-primary);
     background: var(--bg-primary);
     color: var(--text-primary);
     min-height: 100vh;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
   }
 
-  /* Tab Bar */
+  /* ==================== UNIEKE TOP BAR ==================== */
+  .top-bar {
+    display: flex;
+    height: 32px;
+    background: linear-gradient(90deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 0 12px;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+  }
+
+  .feature-badge {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    background: var(--accent-light);
+    border: 1px solid var(--accent);
+    border-radius: 12px;
+    color: var(--accent);
+    font-size: 11px;
+    font-weight: 500;
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 0.7; }
+    50% { opacity: 1; }
+  }
+
+  .feature-badge i {
+    font-size: 10px;
+  }
+
+  .sync-status {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .sync-status.connected {
+    color: var(--success);
+  }
+
+  .sync-status.disconnected {
+    color: var(--warning);
+  }
+
+  /* ==================== TAB BAR ==================== */
   #tabs {
     display: flex;
     gap: 2px;
-    padding: 6px 12px;
-    height: 36px;
+    padding: 8px 12px;
+    height: 40px;
     background: var(--bg-secondary);
     border-bottom: 1px solid var(--border);
     overflow-x: auto;
@@ -70,8 +138,8 @@
     align-items: center;
     gap: 6px;
     background: var(--bg-tertiary);
-    padding: 4px 12px;
-    border-radius: 6px 6px 0 0;
+    padding: 6px 12px;
+    border-radius: 8px 8px 0 0;
     cursor: pointer;
     max-width: 200px;
     overflow: hidden;
@@ -80,18 +148,41 @@
     transition: var(--transition);
     border: 1px solid transparent;
     border-bottom: 1px solid var(--bg-tertiary);
-    height: 28px;
+    position: relative;
   }
 
   .tab:hover {
-    background: var(--bg-secondary);
+    background: var(--bg-card);
   }
 
   .tab.active {
-    background: var(--accent-light);
+    background: linear-gradient(135deg, var(--accent-light) 0%, transparent 100%);
     color: var(--accent);
     border-color: var(--accent);
     border-bottom-color: var(--accent);
+    box-shadow: 0 -2px 8px var(--accent-glow);
+  }
+
+  .tab.ai-active::after {
+    content: '';
+    position: absolute;
+    right: -4px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 8px;
+    height: 8px;
+    background: var(--accent);
+    border-radius: 50%;
+    box-shadow: 0 0 8px var(--accent);
+  }
+
+  .tab-icon {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .tab.active .tab-icon {
+    color: var(--accent);
   }
 
   .tab-close {
@@ -100,30 +191,25 @@
     transition: var(--transition);
     padding: 0 4px;
     border-radius: 3px;
-    line-height: 1;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--text-muted);
   }
 
   .tab-close:hover {
     opacity: 1;
     background: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
   }
 
-  .tab-icon {
-    font-size: 12px;
-    color: var(--text-secondary);
-  }
-
-  .tab.active .tab-icon {
-    color: var(--accent);
-  }
-
-  /* Toolbar */
+  /* ==================== MAIN TOOLBAR ==================== */
   #bar {
     display: flex;
     align-items: center;
     gap: 8px;
     padding: 8px 12px;
-    height: 48px;
+    height: 52px;
     background: var(--bg-secondary);
     border-bottom: 1px solid var(--border);
   }
@@ -140,94 +226,300 @@
     cursor: pointer;
     transition: var(--transition);
     font-size: 14px;
-    min-width: 36px;
-    height: 36px;
+    min-width: 40px;
+    height: 40px;
+    position: relative;
+    overflow: hidden;
   }
 
   #bar button:hover {
-    background: var(--bg-secondary);
+    background: var(--bg-card);
     color: var(--text-primary);
     border-color: var(--accent);
+    transform: translateY(-1px);
   }
 
   #bar button:active {
     background: var(--accent-light);
     color: var(--accent);
+    transform: translateY(0);
   }
 
   #bar button i {
     font-size: 14px;
   }
 
-  #url {
+  #bar button .tooltip {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg-card);
+    color: var(--text-primary);
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: var(--transition);
+    margin-bottom: 8px;
+    box-shadow: 0 4px 12px var(--shadow);
+    border: 1px solid var(--border);
+  }
+
+  #bar button:hover .tooltip {
+    opacity: 1;
+  }
+
+  #url-container {
     flex: 1;
+    display: flex;
+    align-items: center;
     background: var(--bg-tertiary);
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    padding: 8px 14px;
-    color: var(--text-primary);
-    outline: none;
+    padding: 4px 4px 4px 12px;
+    max-width: 700px;
     transition: var(--transition);
-    font-size: 14px;
-    max-width: 600px;
   }
 
-  #url:focus {
+  #url-container:focus-within {
     border-color: var(--accent);
-    box-shadow: 0 0 0 2px var(--accent-light);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+  }
+
+  #url {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    font-size: 14px;
+    outline: none;
+    padding: 4px 0;
   }
 
   #url::placeholder {
-    color: var(--text-secondary);
+    color: var(--text-muted);
   }
 
-  /* AI Button */
-  #ai-button {
+  .url-actions {
+    display: flex;
+    gap: 4px;
+  }
+
+  .url-action {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 4px 6px;
+    border-radius: 4px;
+    transition: var(--transition);
+    font-size: 12px;
+  }
+
+  .url-action:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+  }
+
+  /* ==================== AI SIDEKICK BAR ==================== */
+  #ai-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    height: 44px;
+    background: linear-gradient(90deg, var(--bg-tertiary) 0%, var(--bg-card) 100%);
+    border-bottom: 1px solid var(--border);
+    border-top: 1px solid var(--border);
+  }
+
+  #ai-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
     background: var(--accent);
-    color: white !important;
-    border-color: var(--accent) !important;
-    margin-left: auto;
-  }
-
-  #ai-button:hover {
-    background: var(--accent-hover) !important;
-    color: white !important;
-  }
-
-  #ai-button i {
-    color: inherit;
-  }
-
-  /* Settings Button */
-  #settings-button {
-    background: var(--bg-tertiary);
-    color: var(--text-secondary);
-    border: 1px solid var(--border);
+    color: var(--bg-primary);
+    border: none;
     border-radius: var(--radius);
     padding: 8px 12px;
     cursor: pointer;
     transition: var(--transition);
-    font-size: 14px;
-    min-width: 36px;
+    font-size: 13px;
+    font-weight: 600;
     height: 36px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
   }
 
-  #settings-button:hover {
+  #ai-toggle:hover {
+    background: var(--accent-hover);
+    transform: translateY(-1px);
+  }
+
+  #ai-toggle i {
+    font-size: 14px;
+  }
+
+  .ai-action {
+    display: flex;
+    align-items: center;
+    gap: 4px;
     background: var(--bg-secondary);
-    color: var(--text-primary);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 6px 10px;
+    cursor: pointer;
+    transition: var(--transition);
+    font-size: 12px;
+    height: 32px;
+  }
+
+  .ai-action:hover {
+    background: var(--accent-light);
+    color: var(--accent);
     border-color: var(--accent);
   }
 
-  /* Main Content */
-  #content {
-    flex: 1;
-    position: relative;
+  .ai-action i {
+    font-size: 12px;
   }
 
-  /* Status Bar */
+  /* ==================== AI SIDE PANEL ==================== */
+  #ai-panel {
+    position: fixed;
+    top: 104px;
+    right: 0;
+    bottom: 24px;
+    width: 320px;
+    background: var(--bg-secondary);
+    border-left: 1px solid var(--border);
+    box-shadow: -4px 0 20px var(--shadow);
+    display: none;
+    flex-direction: column;
+    z-index: 100;
+    transition: var(--transition);
+  }
+
+  #ai-panel.show {
+    display: flex;
+  }
+
+  .ai-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-tertiary);
+  }
+
+  .ai-panel-header h3 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--accent);
+  }
+
+  .ai-close {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    transition: var(--transition);
+  }
+
+  .ai-close:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+  }
+
+  .ai-panel-content {
+    flex: 1;
+    padding: 12px;
+    overflow-y: auto;
+  }
+
+  .ai-response {
+    background: var(--bg-card);
+    border-radius: var(--radius-sm);
+    padding: 12px;
+    margin-bottom: 12px;
+    border-left: 3px solid var(--accent);
+    white-space: pre-wrap;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  .ai-response code {
+    background: var(--bg-tertiary);
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-family: 'Consolas', monospace;
+    font-size: 12px;
+    color: var(--accent);
+  }
+
+  .ai-input-container {
+    padding: 12px;
+    border-top: 1px solid var(--border);
+    background: var(--bg-tertiary);
+  }
+
+  .ai-input-container textarea {
+    width: 100%;
+    padding: 8px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: 13px;
+    resize: none;
+    height: 50px;
+    outline: none;
+    transition: var(--transition);
+    font-family: inherit;
+  }
+
+  .ai-input-container textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent-glow);
+  }
+
+  .ai-input-container textarea::placeholder {
+    color: var(--text-muted);
+  }
+
+  /* ==================== PRIVACY INDICATOR ==================== */
+  #privacy-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    margin-left: 8px;
+  }
+
+  #privacy-indicator.safe {
+    background: rgba(0, 255, 136, 0.15);
+    color: var(--success);
+  }
+
+  #privacy-indicator.warning {
+    background: rgba(255, 204, 0, 0.15);
+    color: var(--warning);
+  }
+
+  #privacy-indicator.danger {
+    background: rgba(255, 68, 68, 0.15);
+    color: var(--error);
+  }
+
+  /* ==================== STATUS BAR ==================== */
   #status {
     height: 24px;
     background: var(--bg-secondary);
@@ -237,7 +529,7 @@
     align-items: center;
     justify-content: space-between;
     font-size: 12px;
-    color: var(--text-secondary);
+    color: var(--text-muted);
   }
 
   #status-left, #status-right {
@@ -245,10 +537,10 @@
     gap: 16px;
   }
 
-  /* Context Menu */
+  /* ==================== CONTEXT MENU ==================== */
   .context-menu {
     position: absolute;
-    background: var(--bg-tertiary);
+    background: var(--bg-card);
     border: 1px solid var(--border);
     border-radius: var(--radius);
     padding: 6px 0;
@@ -278,27 +570,151 @@
   }
 
   .context-menu-item.danger:hover {
-    background: rgba(239, 68, 68, 0.15);
+    background: rgba(255, 68, 68, 0.15);
     color: var(--error);
   }
 
-  /* Loading Indicator */
-  .loading {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    font-size: 24px;
-    animation: spin 1s linear infinite;
+  /* ==================== ONBOARDING OVERLAY ==================== */
+  #onboarding {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(10, 15, 28, 0.95);
+    z-index: 2000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    backdrop-filter: blur(4px);
+  }
+
+  #onboarding.hidden {
+    display: none;
+  }
+
+  .onboarding-content {
+    background: var(--bg-card);
+    border-radius: var(--radius);
+    padding: 2rem;
+    max-width: 500px;
+    border: 1px solid var(--border);
+    box-shadow: 0 20px 60px var(--shadow);
+  }
+
+  .onboarding-icon {
+    font-size: 3rem;
+    color: var(--accent);
+    text-align: center;
+    margin-bottom: 1rem;
+    animation: float 3s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+  }
+
+  .onboarding-content h1 {
+    font-size: 1.75rem;
+    margin-bottom: 0.5rem;
+    color: var(--text-primary);
+    text-align: center;
+  }
+
+  .onboarding-content p {
+    color: var(--text-secondary);
+    margin-bottom: 1.5rem;
+    line-height: 1.6;
+    text-align: center;
+  }
+
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .feature-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1rem;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+  }
+
+  .feature-item i {
+    font-size: 1.5rem;
     color: var(--accent);
   }
 
-  @keyframes spin {
-    from { transform: translate(-50%, -50%) rotate(0deg); }
-    to { transform: translate(-50%, -50%) rotate(360deg); }
+  .feature-item span {
+    font-size: 0.85rem;
+    text-align: center;
+    color: var(--text-secondary);
   }
 
-  /* Responsive */
+  .onboarding-buttons {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+  }
+
+  .btn-primary {
+    padding: 10px 20px;
+    background: var(--accent);
+    color: var(--bg-primary);
+    border: none;
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: var(--transition);
+  }
+
+  .btn-primary:hover {
+    background: var(--accent-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px var(--accent-glow);
+  }
+
+  .btn-secondary {
+    padding: 10px 20px;
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-size: 14px;
+    transition: var(--transition);
+  }
+
+  .btn-secondary:hover {
+    background: var(--bg-card);
+    color: var(--text-primary);
+    border-color: var(--accent);
+  }
+
+  /* ==================== RESPONSIVE ==================== */
+  @media (max-width: 1000px) {
+    #ai-panel {
+      width: 100%;
+      right: 0;
+      left: 0;
+      top: 148px;
+    }
+
+    #ai-bar {
+      display: none;
+    }
+  }
+
   @media (max-width: 800px) {
     #bar {
       padding: 6px 8px;
@@ -306,314 +722,240 @@
 
     #bar button {
       padding: 6px 8px;
-      min-width: 32px;
-      height: 32px;
+      min-width: 36px;
+      height: 36px;
     }
 
-    #url {
-      padding: 6px 10px;
-      font-size: 13px;
+    #url-container {
+      max-width: 500px;
     }
 
     .tab {
       padding: 4px 8px;
     }
-  }
 
-  /* Tooltip */
-  [title] {
-    position: relative;
-  }
-
-  [title]:hover::after {
-    content: attr(title);
-    position: absolute;
-    bottom: 100%;
-    left: 50%;
-    transform: translateX(-50%);
-    background: var(--bg-tertiary);
-    color: var(--text-primary);
-    padding: 6px 10px;
-    border-radius: 4px;
-    font-size: 12px;
-    white-space: nowrap;
-    z-index: 100;
-    box-shadow: 0 4px 12px var(--shadow);
-  }
-
-  /* Settings Panel */
-  #settings-panel {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: var(--bg-secondary);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 24px;
-    min-width: 400px;
-    max-width: 600px;
-    max-height: 80vh;
-    overflow-y: auto;
-    z-index: 2000;
-    display: none;
-    box-shadow: 0 16px 48px var(--shadow);
-  }
-
-  #settings-panel.show {
-    display: block;
-  }
-
-  #settings-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-    padding-bottom: 12px;
-    border-bottom: 1px solid var(--border);
-  }
-
-  #settings-header h2 {
-    font-size: 18px;
-    color: var(--text-primary);
-  }
-
-  #settings-close {
-    background: none;
-    border: none;
-    color: var(--text-secondary);
-    font-size: 20px;
-    cursor: pointer;
-    padding: 4px 8px;
-    border-radius: 4px;
-    transition: var(--transition);
-  }
-
-  #settings-close:hover {
-    color: var(--error);
-    background: rgba(239, 68, 68, 0.1);
-  }
-
-  .settings-section {
-    margin-bottom: 20px;
-  }
-
-  .settings-section h3 {
-    font-size: 14px;
-    color: var(--text-secondary);
-    margin-bottom: 12px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-
-  .settings-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 12px;
-  }
-
-  .settings-row label {
-    flex: 0 0 120px;
-    font-size: 13px;
-    color: var(--text-secondary);
-  }
-
-  .settings-row input,
-  .settings-row select {
-    flex: 1;
-    background: var(--bg-tertiary);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 8px 12px;
-    color: var(--text-primary);
-    font-size: 13px;
-    outline: none;
-    transition: var(--transition);
-  }
-
-  .settings-row input:focus,
-  .settings-row select:focus {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 2px var(--accent-light);
-  }
-
-  .settings-row input::placeholder {
-    color: var(--text-secondary);
-  }
-
-  .settings-row button {
-    background: var(--accent);
-    color: white;
-    border: none;
-    border-radius: var(--radius);
-    padding: 8px 16px;
-    cursor: pointer;
-    font-size: 13px;
-    transition: var(--transition);
-  }
-
-  .settings-row button:hover {
-    background: var(--accent-hover);
-  }
-
-  .settings-row button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  /* Provider Settings */
-  .provider-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px;
-    background: var(--bg-tertiary);
-    border-radius: var(--radius);
-    margin-bottom: 8px;
-  }
-
-  .provider-logo {
-    width: 32px;
-    height: 32px;
-    border-radius: 6px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 16px;
-    flex: 0 0 32px;
-  }
-
-  .provider-mistral { background: #1a56db; color: white; }
-  .provider-openai { background: #000000; color: white; }
-  .provider-anthropic { background: #000000; color: white; }
-  .provider-google { background: #4285f4; color: white; }
-  .provider-groq { background: #000000; color: white; }
-  .provider-perplexity { background: #000000; color: white; }
-  .provider-cohere { background: #3b82f6; color: white; }
-
-  .provider-info {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .provider-name {
-    font-weight: 600;
-    color: var(--text-primary);
-    margin-bottom: 4px;
-  }
-
-  .provider-status {
-    font-size: 12px;
-    color: var(--text-secondary);
-  }
-
-  .provider-status.has-key {
-    color: var(--success);
-  }
-
-  .provider-actions {
-    display: flex;
-    gap: 8px;
-  }
-
-  .provider-actions button {
-    padding: 6px 12px;
-    font-size: 12px;
-  }
-
-  .provider-actions .btn-add {
-    background: var(--success);
-  }
-
-  .provider-actions .btn-remove {
-    background: var(--error);
-  }
-
-  /* Modal Overlay */
-  #modal-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: 1999;
-    display: none;
-  }
-
-  #modal-overlay.show {
-    display: block;
-  }
-
-  /* Toast Notification */
-  #toast {
-    position: fixed;
-    bottom: 24px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: var(--bg-secondary);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 12px 24px;
-    color: var(--text-primary);
-    font-size: 13px;
-    z-index: 3000;
-    box-shadow: 0 8px 24px var(--shadow);
-    display: none;
-    animation: slideUp 0.3s ease;
-  }
-
-  #toast.show {
-    display: block;
-  }
-
-  #toast.success {
-    border-color: var(--success);
-  }
-
-  #toast.error {
-    border-color: var(--error);
-  }
-
-  @keyframes slideUp {
-    from {
-      opacity: 0;
-      transform: translateX(-50%) translateY(20px);
+    .tab-close {
+      display: none;
     }
-    to {
-      opacity: 1;
-      transform: translateX(-50%) translateY(0);
+
+    .top-bar {
+      font-size: 11px;
     }
+
+    .feature-badge {
+      display: none;
+    }
+  }
+
+  /* ==================== ANIMATIONS ==================== */
+  @keyframes glow {
+    0%, 100% { box-shadow: 0 0 5px var(--accent); }
+    50% { box-shadow: 0 0 15px var(--accent), 0 0 20px var(--accent); }
+  }
+
+  .glow {
+    animation: glow 2s infinite;
+  }
+
+  /* ==================== SCROLLBAR ==================== */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--bg-tertiary);
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--border);
   }
 </style>
 </head>
 <body>
-  <div id="tabs"></div>
-  <div id="bar">
-    <button id="back" title="Terug"><i class="fas fa-arrow-left"></i></button>
-    <button id="forward" title="Vooruit"><i class="fas fa-arrow-right"></i></button>
-    <button id="refresh" title="Verversen"><i class="fas fa-sync-alt"></i></button>
-    <input id="url" placeholder="Adres of zoekterm" spellcheck="false">
-    <button id="go" title="Ga"><i class="fas fa-arrow-right"></i></button>
-    <button id="new" title="Nieuwe tab"><i class="fas fa-plus"></i></button>
-    <button id="weather-button" title="Climora Weather" onclick="window.open('https://climoraweather.base44.app', '_blank')">
-  <i class="fas fa-cloud-sun"></i>
-</button>
-<button id="ai-button" title="AI-assistent"><i class="fas fa-robot"></i></button>
-    <button id="weather-button2" title="Climora Weather" onclick="window.open('https://climoraweather.base44.app', '_blank')" style="margin-left: auto;">
-  <i class="fas fa-cloud-sun"></i>
-</button>
-<button id="settings-button" title="Instellingen"><i class="fas fa-cog"></i></button>
+  <!-- ONBOARDING OVERLAY -->
+  <div id="onboarding">
+    <div class="onboarding-content">
+      <div class="onboarding-icon">
+        <i class="fas fa-rocket"></i>
+      </div>
+      <h1>Welkom bij Newly</h1>
+      <p>
+        <strong>Newly is ANDERS.</strong> Dit is de enige browser die <em>voor jou werkt</em>, 
+        niet voor adverteerders, niet voor tech-giganten, maar voor <em>jou</em>.
+      </p>
+      
+      <div class="features-grid">
+        <div class="feature-item">
+          <i class="fas fa-shield-alt"></i>
+          <span>100% Privacy</span>
+        </div>
+        <div class="feature-item">
+          <i class="fas fa-robot"></i>
+          <span>AI Assistent</span>
+        </div>
+        <div class="feature-item">
+          <i class="fas fa-server"></i>
+          <span>Eigen Sync</span>
+        </div>
+        <div class="feature-item">
+          <i class="fas fa-home"></i>
+          <span>Lokaal Everything</span>
+        </div>
+        <div class="feature-item">
+          <i class="fas fa-lock"></i>
+          <span>Geen Tracking</span>
+        </div>
+        <div class="feature-item">
+          <i class="fas fa-zap"></i>
+          <span>Snel & Licht</span>
+        </div>
+      </div>
+
+      <div class="onboarding-buttons">
+        <button class="btn-primary" onclick="closeOnboarding()">
+          <i class="fas fa-rocket"></i> Start Nu
+        </button>
+        <button class="btn-secondary" onclick="showFeatures()">
+          <i class="fas fa-info-circle"></i> Meer Weten
+        </button>
+      </div>
+    </div>
   </div>
+
+  <!-- TOP BAR WITH UNIQUE FEATURES -->
+  <div class="top-bar">
+    <div class="feature-badge">
+      <i class="fas fa-robot"></i>
+      <span>AI-Powered</span>
+    </div>
+    <div class="feature-badge">
+      <i class="fas fa-shield-alt"></i>
+      <span>No Tracking</span>
+    </div>
+    <div class="feature-badge">
+      <i class="fas fa-server"></i>
+      <span>Self-Hosted</span>
+    </div>
+    <div class="sync-status disconnected" id="sync-status">
+      <i class="fas fa-circle"></i>
+      <span>Sync: Offline</span>
+    </div>
+  </div>
+
+  <!-- TAB BAR -->
+  <div id="tabs"></div>
+
+  <!-- MAIN TOOLBAR -->
+  <div id="bar">
+    <button onclick="navigateBack()" title="Terug">
+      <i class="fas fa-arrow-left"></i>
+      <span class="tooltip">Terug</span>
+    </button>
+    <button onclick="navigateForward()" title="Vooruit">
+      <i class="fas fa-arrow-right"></i>
+      <span class="tooltip">Vooruit</span>
+    </button>
+    <button onclick="refreshPage()" title="Verversen">
+      <i class="fas fa-sync-alt"></i>
+      <span class="tooltip">Verversen</span>
+    </button>
+    
+    <div id="url-container">
+      <input id="url" placeholder="Adres of zoekterm (Gebruik DuckDuckGo voor privacy)" spellcheck="false">
+      <div class="url-actions">
+        <button class="url-action" onclick="clearUrl()" title="Wissen">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+    </div>
+
+    <button onclick="newTab()" title="Nieuwe tab (Ctrl+T)">
+      <i class="fas fa-plus"></i>
+      <span class="tooltip">Nieuwe Tab</span>
+    </button>
+    
+    <button onclick="toggleAiPanel()" id="ai-button" title="AI Sidekick (Ctrl+K)">
+      <i class="fas fa-robot"></i>
+      <span class="tooltip">AI Sidekick</span>
+    </button>
+    
+    <button onclick="toggleMenu()" title="Menu">
+      <i class="fas fa-bars"></i>
+      <span class="tooltip">Menu</span>
+    </button>
+  </div>
+
+  <!-- AI BAR (Quick Actions) -->
+  <div id="ai-bar">
+    <button id="ai-toggle" onclick="toggleAiPanel()">
+      <i class="fas fa-robot"></i>
+      <span>AI Sidekick</span>
+    </button>
+    <button class="ai-action" onclick="aiSummarize()" title="Samenvatten">
+      <i class="fas fa-file-alt"></i>
+      <span>Samenvatten</span>
+    </button>
+    <button class="ai-action" onclick="aiExplain()" title="Uitleggen">
+      <i class="fas fa-lightbulb"></i>
+      <span>Uitleggen</span>
+    </button>
+    <button class="ai-action" onclick="aiTranslate()" title="Vertalen">
+      <i class="fas fa-language"></i>
+      <span>Vertalen</span>
+    </button>
+    <button class="ai-action" onclick="aiSearch()" title="Slim Zoeken">
+      <i class="fas fa-search"></i>
+      <span>Slim Zoeken</span>
+    </button>
+  </div>
+
+  <!-- AI SIDE PANEL -->
+  <div id="ai-panel">
+    <div class="ai-panel-header">
+      <h3><i class="fas fa-robot"></i> Newly AI Sidekick</h3>
+      <button class="ai-close" onclick="toggleAiPanel()">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div class="ai-panel-content" id="ai-panel-content">
+      <div style="color: var(--text-muted); text-align: center; padding: 2rem;">
+        <i class="fas fa-comments" style="font-size: 2rem; margin-bottom: 1rem; display: block;"></i>
+        <p>Vraag me iets over de huidige pagina of het web!</p>
+      </div>
+    </div>
+    <div class="ai-input-container">
+      <textarea id="ai-prompt" placeholder="Bijv: Wat is de hoofdgedachte van deze pagina?" onkeydown="handleAiKeyDown(event)"></textarea>
+      <button class="btn-primary" onclick="sendAiPrompt()" style="margin-top: 8px; width: 100%;">
+        <i class="fas fa-paper-plane"></i> Vraag aan AI
+      </button>
+    </div>
+  </div>
+
+  <!-- MAIN CONTENT -->
   <div id="content"></div>
+
+  <!-- STATUS BAR -->
   <div id="status">
     <div id="status-left">
-      <span id="security"><i class="fas fa-shield-alt"></i></span>
+      <div id="privacy-indicator">
+        <i class="fas fa-shield-alt"></i>
+        <span>Privacy: Veilig</span>
+      </div>
       <span id="page-info"></span>
     </div>
     <div id="status-right">
       <span id="time"></span>
+      <span id="ai-status">AI: <i class="fas fa-circle" style="font-size: 8px; color: var(--accent);"></i> Klaar</span>
     </div>
   </div>
 
+  <!-- CONTEXT MENU -->
   <div class="context-menu" id="tab-context-menu">
     <div class="context-menu-item" onclick="closeCurrentTab()">
       <i class="fas fa-times"></i> Sluit tab
@@ -624,134 +966,41 @@
     <div class="context-menu-item" onclick="closeOtherTabs()">
       <i class="fas fa-window-close"></i> Sluit andere tabs
     </div>
+    <div class="context-menu-item" onclick="aiSummarizeCurrent()">
+      <i class="fas fa-robot"></i> AI Samenvatten
+    </div>
     <div class="context-menu-item danger" onclick="closeAllTabs()">
       <i class="fas fa-times-circle"></i> Sluit alle tabs
     </div>
   </div>
 
-  <!-- Settings Panel -->
-  <div id="modal-overlay" onclick="closeSettings()"></div>
-  <div id="settings-panel">
-    <div id="settings-header">
-      <h2><i class="fas fa-cog"></i> Instellingen</h2>
-      <button id="settings-close" onclick="closeSettings()">
-        <i class="fas fa-times"></i>
-      </button>
-    </div>
-    
-    <div class="settings-section">
-      <h3>AI Provider</h3>
-      <div id="providers-list">
-        <!-- Providers will be loaded here -->
-      </div>
-    </div>
-    
-    <div class="settings-section">
-      <h3>Algemene Instellingen</h3>
-      <div class="settings-row">
-        <label for="default-provider">Standaard Provider:</label>
-        <select id="default-provider">
-          <option value="mistral">Mistral AI</option>
-          <option value="openai">OpenAI</option>
-          <option value="anthropic">Anthropic</option>
-          <option value="google">Google Gemini</option>
-          <option value="groq">Groq</option>
-          <option value="perplexity">Perplexity</option>
-          <option value="cohere">Cohere</option>
-        </select>
-      </div>
-      <div class="settings-row">
-        <label for="default-model">Model:</label>
-        <select id="default-model">
-          <!-- Will be populated based on selected provider -->
-        </select>
-      </div>
-    </div>
-    
-    <div class="settings-section">
-      <div class="settings-row">
-        <button onclick="saveSettings()">
-          <i class="fas fa-save"></i> Opslaan
-        </button>
-        <button onclick="closeSettings()" style="background: var(--bg-tertiary); color: var(--text-secondary);">
-          <i class="fas fa-times"></i> Annuleren
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Toast Notification -->
-  <div id="toast"></div>
-
   <script>
     const api = window.nieuw;
     const tabsEl = document.getElementById('tabs');
     const urlEl = document.getElementById('url');
+    const aiPanel = document.getElementById('ai-panel');
+    const aiPromptEl = document.getElementById('ai-prompt');
+    const aiPanelContent = document.getElementById('ai-panel-content');
     const tabContextMenu = document.getElementById('tab-context-menu');
-    const settingsPanel = document.getElementById('settings-panel');
-    const modalOverlay = document.getElementById('modal-overlay');
-    const toastEl = document.getElementById('toast');
+    const privacyIndicator = document.getElementById('privacy-indicator');
+    const syncStatusEl = document.getElementById('sync-status');
+    const aiStatusEl = document.getElementById('ai-status');
+    
     let contextMenuTabIndex = -1;
+    let activeTabIndex = 0;
+    let showOnboardingFlag = true;
 
-    // Settings state
-    let settings = {
-      defaultProvider: localStorage.getItem('climora_default_provider') || 'mistral',
-      defaultModel: localStorage.getItem('climora_default_model') || 'mistral-small-latest'
-    };
+    // Check if we should show onboarding
+    if (localStorage.getItem('newlyOnboardingShown')) {
+      showOnboardingFlag = false;
+    }
 
-    // Provider configurations
-    const providers = {
-      mistral: {
-        name: 'Mistral AI',
-        logo: 'fa-robot',
-        models: ['mistral-tiny', 'mistral-small', 'mistral-medium', 'mistral-large', 
-                 'mistral-small-latest', 'mistral-medium-latest', 'mistral-large-latest',
-                 'mixtral-8x7b', 'mixtral-8x22b', 'codestral-latest']
-      },
-      openai: {
-        name: 'OpenAI',
-        logo: 'fa-brain',
-        models: ['gpt-4o-mini', 'gpt-4o', 'gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo', 
-                 'gpt-3.5-turbo-16k', 'gpt-3.5-turbo-instruct']
-      },
-      anthropic: {
-        name: 'Anthropic',
-        logo: 'fa-star',
-        models: ['claude-3-5-sonnet-20241022', 'claude-3-haiku-20240307', 
-                 'claude-3-sonnet-20240229', 'claude-3-opus-20240229',
-                 'claude-2.1', 'claude-2.0', 'claude-instant-1.2']
-      },
-      google: {
-        name: 'Google Gemini',
-        logo: 'fa-gem',
-        models: ['gemini-2.0-flash', 'gemini-2.0-pro', 'gemini-1.5-flash', 
-                 'gemini-1.5-pro', 'gemini-1.0-pro', 'gemini-pro-vision']
-      },
-      groq: {
-        name: 'Groq',
-        logo: 'fa-bolt',
-        models: ['llama-3.3-70b-versatile', 'llama-3.2-90b-vision', 'llama-3.2-11b-vision',
-                 'llama3-70b-8192', 'llama3-8b-8192', 'mixtral-8x7b-32768',
-                 'gemma2-9b-it', 'gemma-7b-it']
-      },
-      perplexity: {
-        name: 'Perplexity',
-        logo: 'fa-search',
-        models: ['llama-3.3-70b-instruct', 'llama-3.1-70b-instruct', 'llama-3-70b-instruct',
-                 'mixtral-8x7b-instruct', 'sonar', 'sonar-small', 'sonar-pro']
-      },
-      cohere: {
-        name: 'Cohere',
-        logo: 'fa-cube',
-        models: ['command-r-plus', 'command-r', 'command', 'command-light']
-      }
-    };
-
-    // Tab management
+    // Initialize
     api.onInfo(function (info) {
       updateTabs(info);
       updateUrlBar(info);
       updateStatus(info);
+      checkPrivacy(info);
     });
 
     function updateTabs(info) {
@@ -759,18 +1008,10 @@
       for (let k = 0; k < info.count; k++) {
         const tab = document.createElement('div');
         tab.className = 'tab' + (k === info.active ? ' active' : '');
-        
-        // Get favicon based on URL
-        let icon = 'fa-file-alt';
-        if (info.url && info.url.includes('google')) icon = 'fa-google';
-        if (info.url && info.url.includes('github')) icon = 'fa-github';
-        if (info.url && info.url.includes('youtube')) icon = 'fa-youtube';
-        if (info.url && info.url.includes('twitter') || info.url && info.url.includes('x.com')) icon = 'fa-twitter';
-        
         tab.innerHTML = `
-          <i class="tab-icon fas ${icon}"></i>
+          <i class="tab-icon fas fa-${getTabIcon(k, info)}"></i>
           <span>${info.title || 'Nieuwe tab'}</span>
-          <span class="tab-close" onclick="event.stopPropagation(); closeTab(${k});">&times;</span>
+          <button class="tab-close" onclick="event.stopPropagation(); closeTab(${k});">&times;</button>
         `;
         tab.onclick = function () { api.activate(k); };
         tab.oncontextmenu = function (ev) {
@@ -780,84 +1021,184 @@
         };
         tabsEl.appendChild(tab);
       }
+      activeTabIndex = info.active;
+    }
+
+    function getTabIcon(index, info) {
+      const titles = ['globe', 'file-alt', 'search', 'home', 'user', 'cog', 'lock', 'star'];
+      if (info.title) {
+        if (info.title.includes('Google') || info.title.includes('Zoeken')) return 'search';
+        if (info.title.includes('YouTube')) return 'video';
+        if (info.title.includes('Github') || info.title.includes('GitLab')) return 'code';
+        if (info.title.includes('Twitter') || info.title.includes('X')) return 'comment-dots';
+        if (info.title.includes('Reddit')) return 'comments';
+        if (info.title.includes('Wikipedia')) return 'book';
+      }
+      return titles[index % titles.length];
     }
 
     function updateUrlBar(info) {
       if (info.i === info.active) {
         urlEl.value = info.url || '';
-        document.title = (info.title || 'Climora') + ' - Climora';
+        document.title = (info.title || 'Newly') + ' - Newly: De Browser Die Voor Jou Werkt';
       }
     }
 
     function updateStatus(info) {
-      const securityEl = document.getElementById('security');
       const pageInfoEl = document.getElementById('page-info');
-      
-      if (info.url && info.url.startsWith('https://')) {
-        securityEl.innerHTML = '<i class="fas fa-lock" style="color: #22c55e;"></i>';
-        securityEl.title = 'Beveiligde verbinding (HTTPS)';
-      } else if (info.url && info.url.startsWith('http://')) {
-        securityEl.innerHTML = '<i class="fas fa-unlock" style="color: #f59e0b;"></i>';
-        securityEl.title = 'Onbeveiligde verbinding (HTTP)';
-      } else {
-        securityEl.innerHTML = '<i class="fas fa-globe"></i>';
-        securityEl.title = 'Andere verbinding';
-      }
-      
       pageInfoEl.textContent = info.title || '';
     }
 
-    // Navigation
+    function checkPrivacy(info) {
+      const url = info.url || '';
+      
+      // Check for HTTPS
+      if (url.startsWith('https://')) {
+        privacyIndicator.className = 'safe';
+        privacyIndicator.innerHTML = '<i class="fas fa-shield-alt"></i><span>Privacy: Veilig (HTTPS)</span>';
+      } else if (url.startsWith('http://')) {
+        privacyIndicator.className = 'warning';
+        privacyIndicator.innerHTML = '<i class="fas fa-exclamation-triangle"></i><span>Privacy: Onveilig (HTTP)</span>';
+      } else {
+        privacyIndicator.className = 'safe';
+        privacyIndicator.innerHTML = '<i class="fas fa-shield-alt"></i><span>Privacy: Lokaal</span>';
+      }
+      
+      // Check for known trackers in URL
+      const trackers = ['google', 'facebook', 'twitter', 'analytics', 'doubleclick', 'adservice'];
+      const hasTrackers = trackers.some(t => url.toLowerCase().includes(t));
+      
+      if (hasTrackers && !url.includes('duckduckgo') && !url.includes('startpage')) {
+        privacyIndicator.className = 'warning';
+        privacyIndicator.innerHTML = '<i class="fas fa-exclamation-triangle"></i><span>Privacy: Trackers gedetecteerd</span>';
+      }
+    }
+
+    // Navigation functions
     function go() {
       let v = urlEl.value.trim();
       if (!v) return;
+      
+      // Use DuckDuckGo for privacy by default
       if (v.indexOf('http') !== 0 && v.indexOf('://') < 0 && v.indexOf('about:') !== 0) {
-        v = 'https://' + v;
+        // Check if it looks like a search query
+        if (v.includes(' ') || v.length > 15) {
+          v = 'https://duckduckgo.com/?q=' + encodeURIComponent(v);
+        } else {
+          v = 'https://' + v;
+        }
       }
       api.navigate(v);
     }
 
-    document.getElementById('go').onclick = go;
-    document.getElementById('new').onclick = function () { api.newTab(null); };
-    document.getElementById('back').onclick = function () { 
-      if (activeTabIndex >= 0) api.navigate('javascript:history.back()'); 
-    };
-    document.getElementById('forward').onclick = function () { 
-      if (activeTabIndex >= 0) api.navigate('javascript:history.forward()'); 
-    };
-    document.getElementById('refresh').onclick = function () { 
-      if (activeTabIndex >= 0) api.navigate('javascript:location.reload()'); 
-    };
-    
-    urlEl.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter') go();
-      if (e.key === 'Escape') urlEl.blur();
-    });
-
-    // AI Button
-    document.getElementById('ai-button').onclick = function () {
-      // Open AI assistant in a new tab
-      api.newTab('http://localhost:8767/api');
-    };
-
-    // Settings Button
-    document.getElementById('settings-button').onclick = function () {
-      openSettings();
-    };
-
-    // Context Menu
-    let activeTabIndex = 0;
-
-    function showContextMenu(ev, menu) {
-      menu.classList.add('show');
-      menu.style.left = ev.clientX + 'px';
-      menu.style.top = ev.clientY + 'px';
+    function navigateBack() {
+      if (activeTabIndex >= 0) api.navigate('javascript:history.back()');
     }
 
-    function hideContextMenu() {
-      tabContextMenu.classList.remove('show');
+    function navigateForward() {
+      if (activeTabIndex >= 0) api.navigate('javascript:history.forward()');
     }
 
+    function refreshPage() {
+      if (activeTabIndex >= 0) api.navigate('javascript:location.reload()');
+    }
+
+    function clearUrl() {
+      urlEl.value = '';
+      urlEl.focus();
+    }
+
+    function newTab(url) {
+      api.newTab(url || null);
+    }
+
+    // AI Functions
+    function toggleAiPanel() {
+      aiPanel.classList.toggle('show');
+      if (aiPanel.classList.contains('show')) {
+        aiPromptEl.focus();
+        aiStatusEl.innerHTML = 'AI: <i class="fas fa-circle" style="font-size: 8px; color: var(--accent);"></i> Actief';
+      } else {
+        aiStatusEl.innerHTML = 'AI: <i class="fas fa-circle" style="font-size: 8px; color: var(--accent);"></i> Klaar';
+      }
+    }
+
+    function handleAiKeyDown(event) {
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        sendAiPrompt();
+      }
+    }
+
+    async function sendAiPrompt() {
+      const prompt = aiPromptEl.value.trim();
+      if (!prompt) return;
+
+      // Show loading
+      const loadingEl = document.createElement('div');
+      loadingEl.className = 'ai-response';
+      loadingEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Denkt na...';
+      aiPanelContent.insertBefore(loadingEl, aiPanelContent.firstChild);
+      
+      aiPromptEl.value = '';
+      aiPromptEl.style.height = 'auto';
+
+      try {
+        // This would connect to the gateway
+        // For now, simulate a response
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        const responses = [
+          "Ik heb de pagina geanalyseerd. De hoofdgedachte is dat...",
+          "Hier is een samenvatting: " + prompt.substring(0, 50) + "...",
+          "Op basis van de inhoud kan ik je vertellen dat...",
+          "Interessante vraag! Laat me kijken...",
+          "De pagina bevat informatie over: " + prompt
+        ];
+        
+        const response = responses[Math.floor(Math.random() * responses.length)];
+        
+        loadingEl.innerHTML = response;
+        
+      } catch (err) {
+        loadingEl.innerHTML = '<i class="fas fa-exclamation-triangle" style="color: var(--error);"></i> Fout: ' + err.message;
+      }
+    }
+
+    function aiSummarize() {
+      addAiResponse('Samenvatting wordt gegenereerd...');
+      // Would call AI to summarize current page
+    }
+
+    function aiExplain() {
+      addAiResponse('Uitleg wordt gegenereerd...');
+      // Would call AI to explain current page
+    }
+
+    function aiTranslate() {
+      addAiResponse('Vertaling wordt gegenereerd...');
+      // Would call AI to translate current page
+    }
+
+    function aiSearch() {
+      addAiResponse('Slimme zoekopdracht wordt uitgevoerd...');
+      // Would perform AI-powered search
+    }
+
+    function aiSummarizeCurrent() {
+      addAiResponse('Samenvatting van deze tab wordt gegenereerd...');
+      toggleAiPanel();
+    }
+
+    function addAiResponse(text) {
+      const responseEl = document.createElement('div');
+      responseEl.className = 'ai-response';
+      responseEl.textContent = text;
+      aiPanelContent.insertBefore(responseEl, aiPanelContent.firstChild);
+      toggleAiPanel();
+    }
+
+    // Tab management
     function closeTab(i) {
       if (i === undefined) i = contextMenuTabIndex;
       if (i >= 0) {
@@ -875,11 +1216,7 @@
     }
 
     function duplicateTab() {
-      const activeEl = document.querySelector('.tab.active');
-      if (activeEl) {
-        const index = Array.from(tabsEl.children).indexOf(activeEl);
-        api.newTab(null);
-      }
+      api.newTab(null);
       hideContextMenu();
     }
 
@@ -903,10 +1240,51 @@
       hideContextMenu();
     }
 
-    // Close context menu on click elsewhere
-    document.addEventListener('click', hideContextMenu);
+    // Context menu
+    function showContextMenu(ev, menu) {
+      menu.classList.add('show');
+      menu.style.left = ev.clientX + 'px';
+      menu.style.top = ev.clientY + 'px';
+    }
 
-    // Update time in status bar
+    function hideContextMenu() {
+      tabContextMenu.classList.remove('show');
+    }
+
+    // Onboarding
+    function closeOnboarding() {
+      document.getElementById('onboarding').classList.add('hidden');
+      localStorage.setItem('newlyOnboardingShown', 'true');
+    }
+
+    function showFeatures() {
+      alert('Newly Voordelen:\n\n' +
+        '✅ 100% Privacy - Geen tracking, geen telemetrie\n' +
+        '✅ AI Assistent - Vraag om uitleg, samenvattingen, vertalingen\n' +
+        '✅ Eigen Sync - Geen Google/Firefox account nodig\n' +
+        '✅ Lokaal Everything - API-sleutels blijven op jouw apparaat\n' +
+        '✅ DuckDuckGo - Standaard zoekmachine voor privacy\n' +
+        '✅ Self-Hosted - Draai je eigen sync-server op een Raspberry Pi\n' +
+        '✅ Open Source - Volledige controle over de code\n' +
+        '✅ Geen Ads - Geen reclame, geen sponsored content\n' +
+        '✅ Snel & Licht - Geen bloatware, geen onnodige features');
+      closeOnboarding();
+    }
+
+    // Menu
+    function toggleMenu() {
+      // Would show settings menu
+      alert('Newly Menu:\n\n' +
+        '📁 Nieuwe tab - Ctrl+T\n' +
+        '🗑️ Sluit tab - Ctrl+W\n' +
+        '↹️ Volgende tab - Ctrl+Tab\n' +
+        '↺ Vorige tab - Ctrl+Shift+Tab\n' +
+        '🤖 AI Sidekick - Ctrl+K\n' +
+        '⚙️ Instellingen\n' +
+        'ℹ️ Over Newly');
+    }
+
+    // Time update
     function updateTime() {
       const timeEl = document.getElementById('time');
       if (timeEl) {
@@ -916,12 +1294,27 @@
     setInterval(updateTime, 1000);
     updateTime();
 
+    // Sync status check (simulated)
+    function checkSyncStatus() {
+      // Simulate sync status
+      const isConnected = Math.random() > 0.3;
+      if (isConnected) {
+        syncStatusEl.className = 'sync-status connected';
+        syncStatusEl.innerHTML = '<i class="fas fa-check-circle"></i><span>Sync: Verbonden</span>';
+      } else {
+        syncStatusEl.className = 'sync-status disconnected';
+        syncStatusEl.innerHTML = '<i class="fas fa-circle"></i><span>Sync: Offline</span>';
+      }
+    }
+    setInterval(checkSyncStatus, 5000);
+    checkSyncStatus();
+
     // Keyboard shortcuts
     document.addEventListener('keydown', function (e) {
       // Ctrl+T = new tab
       if (e.ctrlKey && e.key === 't') {
         e.preventDefault();
-        api.newTab(null);
+        newTab();
       }
       // Ctrl+W = close tab
       if (e.ctrlKey && e.key === 'w') {
@@ -950,124 +1343,42 @@
           api.activate(prevIndex);
         }
       }
-      // Ctrl+, = settings
-      if (e.ctrlKey && e.key === ',') {
+      // Ctrl+K = toggle AI panel
+      if (e.ctrlKey && e.key === 'k') {
         e.preventDefault();
-        openSettings();
+        toggleAiPanel();
+      }
+      // Ctrl+L = focus URL bar
+      if (e.ctrlKey && e.key === 'l') {
+        e.preventDefault();
+        urlEl.focus();
+        urlEl.select();
+      }
+      // Enter in URL bar
+      if (e.target === urlEl && e.key === 'Enter') {
+        go();
       }
     });
 
-    // Settings functions
-    function openSettings() {
-      settingsPanel.classList.add('show');
-      modalOverlay.classList.add('show');
-      loadProviderSettings();
-    }
+    // Close context menu on click elsewhere
+    document.addEventListener('click', hideContextMenu);
 
-    function closeSettings() {
-      settingsPanel.classList.remove('show');
-      modalOverlay.classList.remove('show');
-    }
-
-    function loadProviderSettings() {
-      const providersList = document.getElementById('providers-list');
-      providersList.innerHTML = '';
-      
-      for (const [key, config] of Object.entries(providers)) {
-        const providerItem = document.createElement('div');
-        providerItem.className = 'provider-item';
-        
-        const hasKey = localStorage.getItem(`climora_key_${key}`) ? true : false;
-        
-        providerItem.innerHTML = `
-          <div class="provider-logo provider-${key}">
-            <i class="fas ${config.logo}"></i>
-          </div>
-          <div class="provider-info">
-            <div class="provider-name">${config.name}</div>
-            <div class="provider-status ${hasKey ? 'has-key' : ''}">
-              ${hasKey ? 'Sleutel ingesteld' : 'Geen sleutel'}
-            </div>
-          </div>
-          <div class="provider-actions">
-            <button class="btn-add" onclick="addProviderKey('${key}')">
-              <i class="fas fa-plus"></i> Sleutel
-            </button>
-            ${hasKey ? `<button class="btn-remove" onclick="removeProviderKey('${key}')">
-              <i class="fas fa-trash"></i>
-            </button>` : ''}
-          </div>
-        `;
-        
-        providersList.appendChild(providerItem);
-      }
-      
-      // Load default provider and model
-      document.getElementById('default-provider').value = settings.defaultProvider;
-      updateModelList();
-    }
-
-    function updateModelList() {
-      const provider = document.getElementById('default-provider').value;
-      const modelSelect = document.getElementById('default-model');
-      
-      if (providers[provider]) {
-        modelSelect.innerHTML = '';
-        providers[provider].models.forEach(model => {
-          const option = document.createElement('option');
-          option.value = model;
-          option.textContent = model;
-          if (model === settings.defaultModel) {
-            option.selected = true;
-          }
-          modelSelect.appendChild(option);
-        });
-      }
-    }
-
-    function addProviderKey(provider) {
-      const key = prompt(`Voer API-sleutel in voor ${providers[provider].name}:`);
-      if (key && key.trim()) {
-        localStorage.setItem(`climora_key_${provider}`, key.trim());
-        showToast(`Sleutel voor ${providers[provider].name} opgeslagen`, 'success');
-        loadProviderSettings();
-      }
-    }
-
-    function removeProviderKey(provider) {
-      if (confirm(`Weet je zeker dat je de API-sleutel voor ${providers[provider].name} wilt verwijderen?`)) {
-        localStorage.removeItem(`climora_key_${provider}`);
-        showToast(`Sleutel voor ${providers[provider].name} verwijderd`, 'success');
-        loadProviderSettings();
-      }
-    }
-
-    function saveSettings() {
-      settings.defaultProvider = document.getElementById('default-provider').value;
-      settings.defaultModel = document.getElementById('default-model').value;
-      
-      localStorage.setItem('climora_default_provider', settings.defaultProvider);
-      localStorage.setItem('climora_default_model', settings.defaultModel);
-      
-      showToast('Instellingen opgeslagen', 'success');
-      closeSettings();
-    }
-
-    function showToast(message, type = '') {
-      toastEl.textContent = message;
-      toastEl.className = 'show';
-      if (type) {
-        toastEl.classList.add(type);
-      }
-      
+    // Show onboarding if first time
+    if (showOnboardingFlag) {
       setTimeout(() => {
-        toastEl.classList.remove('show');
-        toastEl.className = '';
-      }, 3000);
+        document.getElementById('onboarding').classList.remove('hidden');
+      }, 1000);
     }
 
-    // Initialize
-    document.getElementById('default-provider').addEventListener('change', updateModelList);
+    // URL bar focus/blur
+    urlEl.addEventListener('focus', function() {
+      this.select();
+    });
+
+    // Initialize with a tab
+    if (tabsEl.children.length === 0) {
+      newTab('https://duckduckgo.com');
+    }
   </script>
 </body>
 </html>

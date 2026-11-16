@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Newly Icon - Unique Cyan Color Theme -->
+  <defs>
+    <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00d4ff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#00a8cc;stop-opacity:1" />
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+      <stop offset="0%" style="stop-color:#00d4ff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#00a8cc;stop-opacity:0.5" />
+    </radialGradient>
+  </defs>
+  
+  <!-- Background Circle -->
+  <circle cx="256" cy="256" r="240" fill="url(#glow)" opacity="0.8"/>
+  
+  <!-- Main Shield Shape -->
+  <path d="M256 48 L48 128 L48 384 L128 464 L256 512 L384 464 L464 384 L464 128 Z" fill="url(#gradient)" stroke="#00ffff" stroke-width="4"/>
+  
+  <!-- Rocket/Arrow Symbol -->
+  <path d="M256 128 L256 384" stroke="#ffffff" stroke-width="32" stroke-linecap="round"/>
+  <path d="M256 128 L192 192 L256 256 L320 192 Z" fill="#ffffff"/>
+  
+  <!-- AI Robot Head (subtle) -->
+  <circle cx="256" cy="256" r="64" fill="none" stroke="#ffffff" stroke-width="6" opacity="0.7"/>
+  <circle cx="220" cy="240" r="8" fill="#ffffff"/>
+  <circle cx="292" cy="240" r="8" fill="#ffffff"/>
+  <path d="M220 272 Q256 288 292 272" stroke="#ffffff" stroke-width="4" fill="none"/>
+  
+  <!-- Privacy Shield Badge -->
+  <circle cx="416" cy="96" r="24" fill="#00ff88" opacity="0.9"/>
+  <path d="M416 80 L416 112 M404 96 L428 96" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>
+</svg>

@@ -3,29 +3,34 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Climora  AI Assistent</title>
+<title>Newly Web - AI Browser in je Browser</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
   :root {
-    --bg-primary: #0f172a;
-    --bg-secondary: #1e293b;
-    --bg-tertiary: #334155;
-    --bg-card: #475569;
-    --text-primary: #f1f5f9;
-    --text-secondary: #94a3b8;
-    --text-muted: #64748b;
-    --accent: #3b82f6;
-    --accent-hover: #2563eb;
-    --accent-light: rgba(59, 130, 246, 0.15);
-    --success: #22c55e;
-    --error: #ef4444;
-    --warning: #f59e0b;
-    --border: #334155;
-    --shadow: rgba(0, 0, 0, 0.3);
+    /* UNIEKE NEWLY KLEUREN */
+    --bg-primary: #0a0f1c;
+    --bg-secondary: #121a2e;
+    --bg-tertiary: #1a253c;
+    --bg-card: #253454;
+    --text-primary: #e8f2ff;
+    --text-secondary: #94a8c8;
+    --text-muted: #6c7a96;
+    --accent: #00d4ff;
+    --accent-hover: #00a8cc;
+    --accent-light: rgba(0, 212, 255, 0.15);
+    --accent-glow: rgba(0, 212, 255, 0.3);
+    --success: #00ff88;
+    --warning: #ffcc00;
+    --error: #ff4444;
+    --border: #2a3a54;
+    --shadow: rgba(0, 0, 0, 0.5);
     --radius: 12px;
     --radius-sm: 8px;
     --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --font-primary: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   }
+
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
   * {
     margin: 0;
@@ -34,19 +39,19 @@
   }
 
   body {
-    font: 15px 'Segoe UI', system-ui, -apple-system, sans-serif;
+    font: 15px var(--font-primary);
     background: var(--bg-primary);
     color: var(--text-primary);
     min-height: 100vh;
     display: flex;
     flex-direction: column;
     line-height: 1.6;
+    overflow-x: hidden;
   }
 
-  /* Header */
   .header {
     background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
-    padding: 2rem 2rem 4rem;
+    padding: 3rem 2rem 5rem;
     text-align: center;
     position: relative;
     overflow: hidden;
@@ -59,100 +64,147 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: radial-gradient(circle at 20% 50%, rgba(59, 130, 246, 0.1) 0%, transparent 50%),
-                radial-gradient(circle at 80% 50%, rgba(16, 185, 129, 0.1) 0%, transparent 50%);
+    background: 
+      radial-gradient(circle at 10% 30%, rgba(0, 212, 255, 0.1) 0%, transparent 40%),
+      radial-gradient(circle at 90% 70%, rgba(0, 255, 136, 0.1) 0%, transparent 40%),
+      radial-gradient(circle at 50% 50%, rgba(0, 212, 255, 0.05) 0%, transparent 70%);
     pointer-events: none;
+    animation: gradientShift 15s ease infinite;
   }
 
-  .logo {
+  @keyframes gradientShift {
+    0%, 100% { transform: translate(0, 0); }
+    50% { transform: translate(10%, 10%); }
+  }
+
+  .header-content {
     position: relative;
     z-index: 1;
   }
 
-  .logo i {
-    font-size: 3rem;
-    color: var(--accent);
-    text-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+  .logo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 1.5rem;
+  }
+
+  .logo-icon {
+    width: 64px;
+    height: 64px;
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-hover) 100%);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    box-shadow: 0 0 30px var(--accent-glow);
     animation: float 3s ease-in-out infinite;
   }
 
   @keyframes float {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-5px); }
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    50% { transform: translateY(-10px) rotate(5deg); }
   }
 
-  .header h1 {
+  .logo-text {
     font-size: 2rem;
-    margin-top: 1rem;
+    font-weight: 700;
     background: linear-gradient(135deg, var(--text-primary) 0%, var(--accent) 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-    position: relative;
-    z-index: 1;
   }
 
-  .header p {
+  .header h1 {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+    color: var(--text-primary);
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+  }
+
+  .header .subtitle {
+    font-size: 1.25rem;
     color: var(--text-secondary);
-    margin-top: 0.5rem;
-    font-size: 1.1rem;
-    max-width: 600px;
+    margin-bottom: 2rem;
+    max-width: 700px;
     margin-left: auto;
     margin-right: auto;
-    position: relative;
-    z-index: 1;
   }
 
-  /* Main Container */
+  .features-bar {
+    display: flex;
+    justify-content: center;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 2rem;
+  }
+
+  .feature-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background: var(--accent-light);
+    border: 1px solid var(--accent);
+    border-radius: 20px;
+    color: var(--accent);
+    font-size: 14px;
+    font-weight: 500;
+    backdrop-filter: blur(10px);
+  }
+
+  .feature-badge i {
+    font-size: 14px;
+  }
+
   .container {
-    max-width: 800px;
-    margin: -2rem auto 0;
+    max-width: 900px;
+    margin: -3rem auto 0;
     padding: 0 1rem 2rem;
     width: 100%;
     position: relative;
     z-index: 1;
   }
 
-  /* Chat Card */
-  .chat-card {
+  .chat-container {
     background: var(--bg-card);
     border-radius: var(--radius);
-    padding: 2rem;
-    margin-bottom: 1.5rem;
-    box-shadow: 0 4px 6px var(--shadow);
     border: 1px solid var(--border);
-    transition: var(--transition);
-  }
-
-  .chat-card:hover {
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 8px 32px var(--shadow);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-height: 600px;
   }
 
   .chat-header {
     display: flex;
     align-items: center;
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-    padding-bottom: 1rem;
+    gap: 12px;
+    padding: 16px 20px;
+    background: var(--bg-tertiary);
     border-bottom: 1px solid var(--border);
-    flex-wrap: wrap;
   }
 
-  .chat-icon {
+  .chat-avatar {
     width: 48px;
     height: 48px;
-    background: var(--accent-light);
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-hover) 100%);
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--accent);
+    color: var(--bg-primary);
     font-size: 1.5rem;
+    box-shadow: 0 0 15px var(--accent-glow);
   }
 
   .chat-info h2 {
     font-size: 1.25rem;
-    margin-bottom: 0.25rem;
+    margin-bottom: 2px;
+    color: var(--text-primary);
   }
 
   .chat-info p {
@@ -160,176 +212,44 @@
     font-size: 0.9rem;
   }
 
-  /* Status Indicator */
-  .status {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.25rem 0.75rem;
-    border-radius: 20px;
-    font-size: 0.85rem;
+  .chat-status {
     margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background: var(--accent-light);
+    border-radius: 12px;
+    color: var(--accent);
+    font-size: 0.85rem;
+    font-weight: 500;
   }
 
-  .status.online {
-    background: rgba(34, 197, 94, 0.15);
-    color: var(--success);
-  }
-
-  .status.offline {
-    background: rgba(239, 68, 68, 0.15);
+  .chat-status.offline {
+    background: rgba(255, 68, 68, 0.15);
     color: var(--error);
   }
 
-  .status i {
-    font-size: 0.75rem;
+  .chat-status i {
+    font-size: 8px;
     animation: pulse 2s infinite;
   }
 
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
-  }
-
-  /* Provider Selector */
-  .provider-selector {
-    display: flex;
-    gap: 0.5rem;
-    margin-left: auto;
-    flex-wrap: wrap;
-  }
-
-  .provider-btn {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 1rem;
-    background: var(--bg-tertiary);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    color: var(--text-secondary);
-    cursor: pointer;
-    font-size: 0.85rem;
-    transition: var(--transition);
-  }
-
-  .provider-btn:hover {
-    background: var(--accent-light);
-    color: var(--accent);
-    border-color: var(--accent);
-  }
-
-  .provider-btn.active {
-    background: var(--accent);
-    color: white;
-    border-color: var(--accent);
-  }
-
-  .provider-btn i {
-    font-size: 1rem;
-  }
-
-  /* Input Area */
-  .input-area {
-    display: flex;
-    gap: 1rem;
-    margin-top: auto;
-  }
-
-  .prompt-container {
+  .chat-messages {
     flex: 1;
-    position: relative;
+    padding: 20px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
   }
 
-  .prompt-container textarea {
-    width: 100%;
-    min-height: 56px;
-    padding: 1rem;
-    background: var(--bg-tertiary);
-    border: 1px solid var(--border);
+  .message {
+    max-width: 85%;
+    padding: 12px 16px;
     border-radius: var(--radius);
-    color: var(--text-primary);
-    font-size: 1rem;
-    resize: vertical;
-    max-height: 200px;
-    transition: var(--transition);
-    font-family: inherit;
-  }
-
-  .prompt-container textarea:focus {
-    outline: none;
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px var(--accent-light);
-  }
-
-  .prompt-container textarea::placeholder {
-    color: var(--text-muted);
-  }
-
-  .char-count {
-    position: absolute;
-    right: 1rem;
-    bottom: 0.5rem;
-    font-size: 0.75rem;
-    color: var(--text-muted);
-  }
-
-  .char-count.warning {
-    color: var(--warning);
-  }
-
-  .char-count.error {
-    color: var(--error);
-  }
-
-  .send-button {
-    align-self: flex-end;
-    padding: 1rem 1.5rem;
-    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-hover) 100%);
-    color: white;
-    border: none;
-    border-radius: var(--radius);
-    cursor: pointer;
-    font-size: 1rem;
-    font-weight: 600;
-    transition: var(--transition);
-    box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
-    min-width: 120px;
-  }
-
-  .send-button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
-  }
-
-  .send-button:active {
-    transform: translateY(0);
-  }
-
-  .send-button:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    transform: none;
-  }
-
-  .send-button i {
-    margin-right: 0.5rem;
-  }
-
-  /* Response Area */
-  .response-area {
-    margin-top: 1.5rem;
-    min-height: 100px;
-  }
-
-  .response-card {
-    background: var(--bg-tertiary);
-    border-radius: var(--radius);
-    padding: 1.5rem;
-    border: 1px solid var(--border);
+    line-height: 1.6;
     animation: fadeIn 0.3s ease;
-    position: relative;
-    margin-bottom: 1rem;
   }
 
   @keyframes fadeIn {
@@ -343,69 +263,77 @@
     }
   }
 
-  .response-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1rem;
-    padding-bottom: 0.75rem;
-    border-bottom: 1px solid var(--border);
-    flex-wrap: wrap;
-    gap: 0.5rem;
+  .message.user {
+    align-self: flex-end;
+    background: var(--accent);
+    color: var(--bg-primary);
+    border-bottom-right-radius: 4px;
   }
 
-  .response-label {
-    font-weight: 600;
-    color: var(--text-primary);
+  .message.ai {
+    align-self: flex-start;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-bottom-left-radius: 4px;
   }
 
-  .response-meta {
-    display: flex;
-    gap: 1rem;
-    font-size: 0.85rem;
-    color: var(--text-secondary);
-    align-items: center;
-  }
-
-  .response-text {
-    white-space: pre-wrap;
-    line-height: 1.7;
-    color: var(--text-primary);
-  }
-
-  .response-text code {
+  .message.system {
+    align-self: center;
     background: var(--bg-secondary);
-    padding: 0.1rem 0.3rem;
+    border: 1px solid var(--border);
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    padding: 8px 12px;
+    border-radius: 20px;
+  }
+
+  .message.ai code {
+    background: var(--bg-secondary);
+    padding: 2px 4px;
     border-radius: 4px;
     font-family: 'Consolas', 'Monaco', monospace;
     font-size: 0.9rem;
     color: var(--accent);
   }
 
-  .response-text pre {
+  .message.ai pre {
     background: var(--bg-secondary);
-    padding: 1rem;
+    padding: 12px;
     border-radius: var(--radius-sm);
     overflow-x: auto;
-    margin: 1rem 0;
+    margin: 10px 0;
     font-family: 'Consolas', 'Monaco', monospace;
     font-size: 0.9rem;
   }
 
-  .response-text pre code {
+  .message.ai pre code {
     background: none;
     padding: 0;
     color: inherit;
   }
 
-  /* Loading States */
-  .typing-indicator {
-    display: flex;
-    gap: 4px;
-    padding: 1rem;
+  .message.ai strong {
+    color: var(--accent);
   }
 
-  .typing-indicator span {
+  .typing-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    align-self: flex-start;
+    max-width: 85%;
+  }
+
+  .typing-dots {
+    display: flex;
+    gap: 4px;
+  }
+
+  .typing-dots span {
     width: 8px;
     height: 8px;
     background: var(--accent);
@@ -413,52 +341,127 @@
     animation: bounce 1.4s infinite ease-in-out;
   }
 
-  .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
-  .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
-  .typing-indicator span:nth-child(3) { animation-delay: 0s; }
+  .typing-dots span:nth-child(1) { animation-delay: -0.32s; }
+  .typing-dots span:nth-child(2) { animation-delay: -0.16s; }
+  .typing-dots span:nth-child(3) { animation-delay: 0s; }
 
   @keyframes bounce {
     0%, 80%, 100% { transform: scale(0); }
     40% { transform: scale(1); }
   }
 
-  .error-message {
+  .input-area {
+    padding: 16px 20px;
+    background: var(--bg-tertiary);
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 12px;
+    align-items: flex-end;
+  }
+
+  .prompt-container {
+    flex: 1;
+    position: relative;
+  }
+
+  .prompt-container textarea {
+    width: 100%;
+    min-height: 50px;
+    max-height: 150px;
+    padding: 12px 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text-primary);
+    font-size: 15px;
+    resize: vertical;
+    outline: none;
+    transition: var(--transition);
+    font-family: inherit;
+  }
+
+  .prompt-container textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+  }
+
+  .prompt-container textarea::placeholder {
+    color: var(--text-muted);
+  }
+
+  .char-count {
+    position: absolute;
+    right: 16px;
+    bottom: 12px;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  .char-count.warning {
+    color: var(--warning);
+  }
+
+  .char-count.error {
     color: var(--error);
-    background: rgba(239, 68, 68, 0.1);
-    border: 1px solid var(--error);
-    padding: 1rem;
-    border-radius: var(--radius-sm);
+  }
+
+  .send-button {
+    padding: 12px 20px;
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-hover) 100%);
+    color: var(--bg-primary);
+    border: none;
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 600;
+    transition: var(--transition);
+    box-shadow: 0 4px 15px var(--accent-glow);
+    height: 50px;
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: 6px;
   }
 
-  .error-message i {
-    font-size: 1.25rem;
+  .send-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px var(--accent-glow);
   }
 
-  /* Suggestions */
+  .send-button:active {
+    transform: translateY(0);
+  }
+
+  .send-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .send-button i {
+    font-size: 16px;
+  }
+
   .suggestions {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.75rem;
-    margin-top: 1rem;
-    padding-top: 1rem;
+    gap: 8px;
+    padding: 12px 20px 16px;
+    background: var(--bg-secondary);
     border-top: 1px solid var(--border);
   }
 
   .suggestion-chip {
-    background: var(--bg-secondary);
-    padding: 0.5rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--bg-tertiary);
+    padding: 8px 12px;
     border-radius: 20px;
-    font-size: 0.85rem;
+    font-size: 13px;
     color: var(--text-secondary);
     cursor: pointer;
     transition: var(--transition);
-    border: 1px solid transparent;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
+    border: 1px solid var(--border);
   }
 
   .suggestion-chip:hover {
@@ -468,289 +471,87 @@
   }
 
   .suggestion-chip i {
-    font-size: 0.9rem;
+    font-size: 12px;
   }
 
-  /* History */
-  .history-section {
+  .info-section {
     margin-top: 2rem;
-  }
-
-  .history-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1rem;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-  }
-
-  .history-header h3 {
-    font-size: 1.1rem;
-    color: var(--text-primary);
-  }
-
-  .history-clear-btn {
-    background: none;
-    border: 1px solid var(--border);
-    color: var(--text-secondary);
-    padding: 0.5rem 1rem;
-    border-radius: var(--radius-sm);
-    cursor: pointer;
-    font-size: 0.85rem;
-    transition: var(--transition);
-  }
-
-  .history-clear-btn:hover {
-    color: var(--error);
-    border-color: var(--error);
-  }
-
-  .history-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-
-  .history-item {
     background: var(--bg-card);
-    padding: 1rem;
+    border-radius: var(--radius);
+    padding: 20px;
+    border: 1px solid var(--border);
+    box-shadow: 0 4px 16px var(--shadow);
+  }
+
+  .info-section h3 {
+    font-size: 1.1rem;
+    margin-bottom: 1rem;
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+  }
+
+  .info-item {
+    display: flex;
+    gap: 10px;
+    padding: 10px;
+    background: var(--bg-tertiary);
     border-radius: var(--radius-sm);
     border: 1px solid var(--border);
-    cursor: pointer;
-    transition: var(--transition);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
   }
 
-  .history-item:hover {
-    background: var(--bg-tertiary);
-    border-color: var(--accent);
-  }
-
-  .history-item .text {
-    flex: 1;
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-  }
-
-  .history-item .timestamp {
-    color: var(--text-muted);
-    font-size: 0.8rem;
-    margin-left: 1rem;
-  }
-
-  /* Empty State */
-  .empty-state {
+  .info-item i {
+    font-size: 1.25rem;
+    color: var(--accent);
+    min-width: 24px;
     text-align: center;
-    padding: 3rem;
-    color: var(--text-muted);
   }
 
-  .empty-state i {
-    font-size: 3rem;
-    margin-bottom: 1rem;
-    opacity: 0.5;
-  }
-
-  .empty-state h3 {
-    margin-bottom: 0.5rem;
-    color: var(--text-secondary);
-  }
-
-  /* Settings Panel */
-  #settings-panel {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: var(--bg-secondary);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 24px;
-    min-width: 400px;
-    max-width: 600px;
-    max-height: 80vh;
-    overflow-y: auto;
-    z-index: 2000;
-    display: none;
-    box-shadow: 0 16px 48px var(--shadow);
-  }
-
-  #settings-panel.show {
-    display: block;
-  }
-
-  #settings-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-    padding-bottom: 12px;
-    border-bottom: 1px solid var(--border);
-  }
-
-  #settings-header h2 {
-    font-size: 18px;
+  .info-item-content h4 {
+    font-size: 0.9rem;
+    margin-bottom: 2px;
     color: var(--text-primary);
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
   }
 
-  #settings-close {
-    background: none;
-    border: none;
+  .info-item-content p {
+    font-size: 0.8rem;
     color: var(--text-secondary);
-    font-size: 20px;
-    cursor: pointer;
-    padding: 4px 8px;
-    border-radius: 4px;
-    transition: var(--transition);
   }
 
-  #settings-close:hover {
+  .error-message {
     color: var(--error);
-    background: rgba(239, 68, 68, 0.1);
-  }
-
-  .settings-section {
-    margin-bottom: 20px;
-  }
-
-  .settings-section h3 {
-    font-size: 14px;
-    color: var(--text-secondary);
-    margin-bottom: 12px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-
-  .settings-row {
+    background: rgba(255, 68, 68, 0.1);
+    border: 1px solid var(--error);
+    padding: 12px 16px;
+    border-radius: var(--radius-sm);
     display: flex;
     align-items: center;
-    gap: 12px;
-    margin-bottom: 12px;
+    gap: 8px;
+    align-self: flex-start;
+    max-width: 85%;
   }
 
-  .settings-row label {
-    flex: 0 0 120px;
-    font-size: 13px;
-    color: var(--text-secondary);
+  .error-message i {
+    font-size: 1.25rem;
   }
 
-  .settings-row input,
-  .settings-row select {
-    flex: 1;
-    background: var(--bg-tertiary);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 8px 12px;
-    color: var(--text-primary);
-    font-size: 13px;
-    outline: none;
-    transition: var(--transition);
-  }
-
-  .settings-row input:focus,
-  .settings-row select:focus {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 2px var(--accent-light);
-  }
-
-  .settings-row input::placeholder {
-    color: var(--text-muted);
-  }
-
-  .settings-row button {
-    background: var(--accent);
-    color: white;
-    border: none;
-    border-radius: var(--radius);
-    padding: 8px 16px;
-    cursor: pointer;
-    font-size: 13px;
-    transition: var(--transition);
-  }
-
-  .settings-row button:hover {
-    background: var(--accent-hover);
-  }
-
-  .settings-row button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  /* Modal Overlay */
-  #modal-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: 1999;
-    display: none;
-  }
-
-  #modal-overlay.show {
-    display: block;
-  }
-
-  /* Toast Notification */
-  #toast {
-    position: fixed;
-    bottom: 24px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: var(--bg-secondary);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 12px 24px;
-    color: var(--text-primary);
-    font-size: 13px;
-    z-index: 3000;
-    box-shadow: 0 8px 24px var(--shadow);
-    display: none;
-    animation: slideUp 0.3s ease;
-  }
-
-  #toast.show {
-    display: block;
-  }
-
-  #toast.success {
-    border-color: var(--success);
-    background: rgba(34, 197, 94, 0.1);
-  }
-
-  #toast.error {
-    border-color: var(--error);
-    background: rgba(239, 68, 68, 0.1);
-  }
-
-  @keyframes slideUp {
-    from {
-      opacity: 0;
-      transform: translateX(-50%) translateY(20px);
-    }
-    to {
-      opacity: 1;
-      transform: translateX(-50%) translateY(0);
-    }
-  }
-
-  /* Responsive */
   @media (max-width: 768px) {
     .header {
-      padding: 1.5rem 1rem 3rem;
+      padding: 2rem 1rem 3rem;
     }
 
     .header h1 {
-      font-size: 1.5rem;
+      font-size: 1.75rem;
     }
 
-    .header p {
+    .header .subtitle {
       font-size: 1rem;
     }
 
@@ -758,38 +559,43 @@
       padding: 0 0.5rem 1rem;
     }
 
-    .chat-card {
-      padding: 1.25rem;
+    .chat-container {
+      min-height: 500px;
+    }
+
+    .features-bar {
+      gap: 1rem;
+    }
+
+    .feature-badge {
+      padding: 6px 12px;
+      font-size: 12px;
     }
 
     .input-area {
+      padding: 12px 16px;
       flex-direction: column;
     }
 
     .send-button {
       width: 100%;
-      min-width: auto;
+      height: auto;
     }
 
-    .chat-header {
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 0.75rem;
+    .suggestions {
+      padding: 12px 16px;
     }
 
-    .status {
-      margin-left: 0;
-      margin-top: 0.5rem;
+    .suggestion-chip {
+      font-size: 12px;
+      padding: 6px 10px;
     }
 
-    .provider-selector {
-      margin-left: 0;
-      margin-top: 0.5rem;
-      justify-content: center;
+    .message {
+      max-width: 90%;
     }
   }
 
-  /* Scrollbar */
   ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
@@ -807,41 +613,73 @@
   ::-webkit-scrollbar-thumb:hover {
     background: var(--border);
   }
+
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+
+  .shimmer {
+    background: linear-gradient(90deg, var(--bg-tertiary) 25%, var(--bg-secondary) 50%, var(--bg-tertiary) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
 </style>
 </head>
 <body>
   <div class="header">
-    <div class="logo">
-      <i class="fas fa-robot"></i>
+    <div class="header-content">
+      <div class="logo">
+        <div class="logo-icon">
+          <i class="fas fa-rocket"></i>
+        </div>
+        <span class="logo-text">Newly</span>
+      </div>
+      <h1>De Browser Die Werkt VOOR Jou</h1>
+      <p class="subtitle">
+        Geen tracking, geen ads, geen tech-giganten. Alleen jij en je data.
+      </p>
+      
+      <div class="features-bar">
+        <div class="feature-badge">
+          <i class="fas fa-shield-alt"></i>
+          <span>100% Privacy</span>
+        </div>
+        <div class="feature-badge">
+          <i class="fas fa-robot"></i>
+          <span>AI Assistent</span>
+        </div>
+        <div class="feature-badge">
+          <i class="fas fa-server"></i>
+          <span>Eigen Sync</span>
+        </div>
+        <div class="feature-badge">
+          <i class="fas fa-home"></i>
+          <span>Lokaal Everything</span>
+        </div>
+      </div>
     </div>
-    <h1>Climora AI Assistent</h1>
-    <p>Stel vragen aan je lokale AI-gateway. De gateway draait op <code>http://localhost:8766</code></p>
   </div>
 
   <div class="container">
-    <div class="chat-card">
+    <div class="chat-container">
       <div class="chat-header">
-        <div class="chat-icon">
-          <i class="fas fa-comments"></i>
+        <div class="chat-avatar">
+          <i class="fas fa-robot"></i>
         </div>
         <div class="chat-info">
-          <h2>Chat met Climora</h2>
-          <p>De AI-assistent die verbonden is met je browser</p>
+          <h2>Newly AI Assistent</h2>
+          <p>Vraag me alles over het web</p>
         </div>
-        <div class="status online" id="gateway-status">
+        <div class="chat-status offline" id="gateway-status">
           <i class="fas fa-circle"></i>
-          <span>Gateway actief</span>
-        </div>
-        <div class="provider-selector" id="provider-selector">
-          <!-- Provider buttons will be added here -->
+          <span>Gateway: Niet verbonden</span>
         </div>
       </div>
 
-      <div class="response-area" id="response-area">
-        <div class="empty-state">
-          <i class="fas fa-comment-dots"></i>
-          <h3>Begin een gesprek</h3>
-          <p>Stel een vraag om te beginnen</p>
+      <div class="chat-messages" id="chat-messages">
+        <div class="message system">
+          <i class="fas fa-info-circle"></i> Welkom bij Newly Web! Stel een vraag of gebruik de suggesties hieronder.
         </div>
       </div>
 
@@ -850,209 +688,106 @@
           <textarea 
             id="prompt" 
             rows="1" 
-            placeholder="Bijvoorbeeld: leg uit wat agent-MCP is, of vraag om een samenvatting van een webpage..."
+            placeholder="Bijv: Wat is het verschil tussen Newly en andere browsers?"
             maxlength="2000"
           ></textarea>
           <div class="char-count" id="char-count">0 / 2000</div>
         </div>
         <button class="send-button" id="send-button" onclick="vraag()">
           <i class="fas fa-paper-plane"></i>
-          Verzenden
+          <span>Verzenden</span>
         </button>
       </div>
 
       <div class="suggestions">
-        <div class="suggestion-chip" onclick="setPrompt('Leg uit wat agent-MCP is')">
-          <i class="fas fa-info-circle"></i> Leg uit wat agent-MCP is
+        <div class="suggestion-chip" onclick="setPrompt('Wat maakt Newly anders dan Chrome, Firefox en Edge?')">
+          <i class="fas fa-question-circle"></i>
+          <span>Verschil met andere browsers</span>
         </div>
-        <div class="suggestion-chip" onclick="setPrompt('Hoe werkt de sync-server?')">
-          <i class="fas fa-server"></i> Hoe werkt de sync-server?
+        <div class="suggestion-chip" onclick="setPrompt('Hoe werkt de privacy-bescherming in Newly?')">
+          <i class="fas fa-shield-alt"></i>
+          <span>Privacy uitleg</span>
         </div>
-        <div class="suggestion-chip" onclick="setPrompt('Maak een samenvatting van deze pagina')">
-          <i class="fas fa-file-alt"></i> Samenvatting maken
+        <div class="suggestion-chip" onclick="setPrompt('Hoe stel ik mijn eigen sync-server in op een Raspberry Pi?')">
+          <i class="fas fa-raspberry-pi"></i>
+          <span>Raspberry Pi sync</span>
         </div>
-        <div class="suggestion-chip" onclick="setPrompt('Wat zijn de nieuwe features?')">
-          <i class="fas fa-sparkles"></i> Nieuwe features
+        <div class="suggestion-chip" onclick="setPrompt('Wat kan de AI-assistent allemaal?')">
+          <i class="fas fa-robot"></i>
+          <span>AI mogelijkheden</span>
         </div>
-        <div class="suggestion-chip" onclick="window.open('https://climoraweather.base44.app', '_blank')">
-  <i class="fas fa-cloud-sun"></i> Open Climora Weather
-</div>
-        <div class="suggestion-chip" onclick="openSettings()">
-          <i class="fas fa-cog"></i> Instellingen
+        <div class="suggestion-chip" onclick="setPrompt('Is Newly open source?')">
+          <i class="fas fa-code"></i>
+          <span>Open source?</span>
         </div>
       </div>
     </div>
 
-    <div class="history-section">
-      <div class="history-header">
-        <h3>Gespreksgeschiedenis</h3>
-        <button class="history-clear-btn" onclick="clearHistory()">
-          <i class="fas fa-trash"></i> Wissen
-        </button>
-      </div>
-      <div class="history-list" id="history-list">
-        <!-- History items will be added here -->
+    <div class="info-section">
+      <h3>
+        <i class="fas fa-star"></i>
+        Waarom Newly ANDERS is
+      </h3>
+      <div class="info-grid">
+        <div class="info-item">
+          <i class="fas fa-eye-slash"></i>
+          <div class="info-item-content">
+            <h4>Geen Tracking</h4>
+            <p>We volgen je niet, verkopen je data niet, en hebben geen verborgen telemetrie.</p>
+          </div>
+        </div>
+        <div class="info-item">
+          <i class="fas fa-cloud-slash"></i>
+          <div class="info-item-content">
+            <h4>Geen Cloud Afhankelijkheid</h4>
+            <p>Alles werkt lokaal of op je eigen server. Geen Google/Firefox account nodig.</p>
+          </div>
+        </div>
+        <div class="info-item">
+          <i class="fas fa-robot"></i>
+          <div class="info-item-content">
+            <h4>AI Ingebouwd</h4>
+            <p>Vraag de AI om uitleg, samenvattingen, vertalingen - rechtstreeks in je browser.</p>
+          </div>
+        </div>
+        <div class="info-item">
+          <i class="fas fa-server"></i>
+          <div class="info-item-content">
+            <h4>Zelf Hosten</h4>
+            <p>Draai je eigen sync-server op een Raspberry Pi of VPS voor volledige controle.</p>
+          </div>
+        </div>
+        <div class="info-item">
+          <i class="fas fa-key"></i>
+          <div class="info-item-content">
+            <h4>Jouw API Sleutels</h4>
+            <p>AI API-sleutels blijven op jouw apparaat. Geen data lekt naar externe partijen.</p>
+          </div>
+        </div>
+        <div class="info-item">
+          <i class="fas fa-tachometer-alt"></i>
+          <div class="info-item-content">
+            <h4>Snel & Licht</h4>
+            <p>Geen bloatware, geen onnodige features. Alleen wat je nodig hebt.</p>
+          </div>
+        </div>
       </div>
     </div>
   </div>
-
-  <!-- Settings Panel -->
-  <div id="modal-overlay" onclick="closeSettings()"></div>
-  <div id="settings-panel">
-    <div id="settings-header">
-      <h2><i class="fas fa-cog"></i> AI Instellingen</h2>
-      <button id="settings-close" onclick="closeSettings()">
-        <i class="fas fa-times"></i>
-      </button>
-    </div>
-    
-    <div class="settings-section">
-      <h3>Provider & Model</h3>
-      <div class="settings-row">
-        <label for="default-provider">Provider:</label>
-        <select id="default-provider">
-          <option value="mistral">Mistral AI</option>
-          <option value="openai">OpenAI</option>
-          <option value="anthropic">Anthropic</option>
-          <option value="google">Google Gemini</option>
-          <option value="groq">Groq</option>
-          <option value="perplexity">Perplexity</option>
-          <option value="cohere">Cohere</option>
-        </select>
-      </div>
-      <div class="settings-row">
-        <label for="default-model">Model:</label>
-        <select id="default-model">
-          <!-- Will be populated based on selected provider -->
-        </select>
-      </div>
-      <div class="settings-row">
-        <label for="gateway-url">Gateway URL:</label>
-        <input id="gateway-url" placeholder="http://localhost:8766" value="http://localhost:8766">
-      </div>
-    </div>
-    
-    <div class="settings-section">
-      <h3>API Sleutels Beheren</h3>
-      <div class="settings-row">
-        <label>Provider:</label>
-        <select id="key-provider">
-          <option value="mistral">Mistral AI</option>
-          <option value="openai">OpenAI</option>
-          <option value="anthropic">Anthropic</option>
-          <option value="google">Google Gemini</option>
-          <option value="groq">Groq</option>
-          <option value="perplexity">Perplexity</option>
-          <option value="cohere">Cohere</option>
-        </select>
-      </div>
-      <div class="settings-row">
-        <label for="api-key-input">API Sleutel:</label>
-        <input id="api-key-input" type="password" placeholder="Voer API sleutel in">
-      </div>
-      <div class="settings-row">
-        <button onclick="saveApiKey()">
-          <i class="fas fa-save"></i> Sleutel Opslaan
-        </button>
-        <button onclick="removeApiKey()" style="background: var(--error);">
-          <i class="fas fa-trash"></i> Sleutel Verwijderen
-        </button>
-      </div>
-    </div>
-    
-    <div class="settings-section">
-      <div class="settings-row">
-        <button onclick="saveSettings()">
-          <i class="fas fa-save"></i> Opslaan
-        </button>
-        <button onclick="closeSettings()" style="background: var(--bg-tertiary); color: var(--text-secondary);">
-          <i class="fas fa-times"></i> Annuleren
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Toast Notification -->
-  <div id="toast"></div>
 
   <script>
     const MAX_HISTORY = 50;
-    let conversationHistory = JSON.parse(localStorage.getItem('climoraHistory') || '[]');
+    let conversationHistory = JSON.parse(localStorage.getItem('newlyWebHistory') || '[]');
 
     const promptEl = document.getElementById('prompt');
-    const responseAreaEl = document.getElementById('response-area');
+    const chatMessagesEl = document.getElementById('chat-messages');
     const charCountEl = document.getElementById('char-count');
     const sendButtonEl = document.getElementById('send-button');
     const gatewayStatusEl = document.getElementById('gateway-status');
-    const historyListEl = document.getElementById('history-list');
-    const providerSelectorEl = document.getElementById('provider-selector');
-    const settingsPanel = document.getElementById('settings-panel');
-    const modalOverlay = document.getElementById('modal-overlay');
-    const toastEl = document.getElementById('toast');
 
-    // Settings state
-    let settings = {
-      defaultProvider: localStorage.getItem('climora_default_provider') || 'mistral',
-      defaultModel: localStorage.getItem('climora_default_model') || 'mistral-small-latest',
-      gatewayUrl: localStorage.getItem('climora_gateway_url') || 'http://localhost:8766'
-    };
-
-    // Provider configurations
-    const providers = {
-      mistral: {
-        name: 'Mistral AI',
-        logo: 'fa-robot',
-        models: ['mistral-tiny', 'mistral-small', 'mistral-medium', 'mistral-large', 
-                 'mistral-small-latest', 'mistral-medium-latest', 'mistral-large-latest',
-                 'mixtral-8x7b', 'mixtral-8x22b', 'codestral-latest']
-      },
-      openai: {
-        name: 'OpenAI',
-        logo: 'fa-brain',
-        models: ['gpt-4o-mini', 'gpt-4o', 'gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo', 
-                 'gpt-3.5-turbo-16k', 'gpt-3.5-turbo-instruct']
-      },
-      anthropic: {
-        name: 'Anthropic',
-        logo: 'fa-star',
-        models: ['claude-3-5-sonnet-20241022', 'claude-3-haiku-20240307', 
-                 'claude-3-sonnet-20240229', 'claude-3-opus-20240229',
-                 'claude-2.1', 'claude-2.0', 'claude-instant-1.2']
-      },
-      google: {
-        name: 'Google',
-        logo: 'fa-gem',
-        models: ['gemini-2.0-flash', 'gemini-2.0-pro', 'gemini-1.5-flash', 
-                 'gemini-1.5-pro', 'gemini-1.0-pro', 'gemini-pro-vision']
-      },
-      groq: {
-        name: 'Groq',
-        logo: 'fa-bolt',
-        models: ['llama-3.3-70b-versatile', 'llama-3.2-90b-vision', 'llama-3.2-11b-vision',
-                 'llama3-70b-8192', 'llama3-8b-8192', 'mixtral-8x7b-32768',
-                 'gemma2-9b-it', 'gemma-7b-it']
-      },
-      perplexity: {
-        name: 'Perplexity',
-        logo: 'fa-search',
-        models: ['llama-3.3-70b-instruct', 'llama-3.1-70b-instruct', 'llama-3-70b-instruct',
-                 'mixtral-8x7b-instruct', 'sonar', 'sonar-small', 'sonar-pro']
-      },
-      cohere: {
-        name: 'Cohere',
-        logo: 'fa-cube',
-        models: ['command-r-plus', 'command-r', 'command', 'command-light']
-      }
-    };
-
-    // Current provider and model
-    let currentProvider = settings.defaultProvider;
-    let currentModel = settings.defaultModel;
-
-    // Auto-resize textarea
     promptEl.addEventListener('input', function() {
       this.style.height = 'auto';
-      this.style.height = Math.min(this.scrollHeight, 200) + 'px';
+      this.style.height = Math.min(this.scrollHeight, 150) + 'px';
       updateCharCount();
     });
 
@@ -1074,128 +809,80 @@
       sendButtonEl.disabled = count === 0 || count > max;
     }
 
-    // Initialize provider selector
-    function initProviderSelector() {
-      providerSelectorEl.innerHTML = '';
-      
-      for (const [key, config] of Object.entries(providers)) {
-        const btn = document.createElement('button');
-        btn.className = 'provider-btn' + (key === currentProvider ? ' active' : '');
-        btn.innerHTML = `<i class="fas ${config.logo}"></i> ${config.name}`;
-        btn.onclick = () => {
-          currentProvider = key;
-          updateModelList();
-          updateProviderSelector();
-          document.getElementById('default-provider').value = key;
-        };
-        providerSelectorEl.appendChild(btn);
-      }
-    }
-
-    function updateProviderSelector() {
-      const buttons = providerSelectorEl.querySelectorAll('.provider-btn');
-      buttons.forEach(btn => {
-        const provider = btn.textContent.toLowerCase().replace(/\s+/g, '');
-        if (provider === currentProvider) {
-          btn.classList.add('active');
-        } else {
-          btn.classList.remove('active');
-        }
-      });
-    }
-
-    function updateModelList() {
-      const modelSelect = document.getElementById('default-model');
-      const provider = document.getElementById('default-provider').value;
-      
-      if (providers[provider]) {
-        modelSelect.innerHTML = '';
-        providers[provider].models.forEach(model => {
-          const option = document.createElement('option');
-          option.value = model;
-          option.textContent = model;
-          if (model === currentModel) {
-            option.selected = true;
-          }
-          modelSelect.appendChild(option);
-        });
-      }
-    }
-
-    // Check gateway status
     async function checkGateway() {
       try {
-        const res = await fetch(`${settings.gatewayUrl}/health`, { 
+        const res = await fetch('http://localhost:8766/health', { 
           method: 'GET',
           cache: 'no-store'
         });
         if (res.ok) {
-          const data = await res.json();
-          gatewayStatusEl.className = 'status online';
-          gatewayStatusEl.innerHTML = `<i class="fas fa-circle"></i><span>Gateway actief (${data.provider || 'unknown'})</span>`;
+          gatewayStatusEl.className = 'chat-status';
+          gatewayStatusEl.innerHTML = '<i class="fas fa-check-circle"></i><span>Gateway: Verbonden</span>';
           return true;
         }
       } catch (err) {
-        // Gateway not running
       }
-      gatewayStatusEl.className = 'status offline';
-      gatewayStatusEl.innerHTML = '<i class="fas fa-circle"></i><span>Gateway niet actief</span>';
+      gatewayStatusEl.className = 'chat-status offline';
+      gatewayStatusEl.innerHTML = '<i class="fas fa-circle"></i><span>Gateway: Niet verbonden</span>';
       return false;
     }
 
-    // Initial check
     checkGateway();
-    
-    // Periodically check gateway
     setInterval(checkGateway, 30000);
 
-    // Load history
-    function renderHistory() {
-      historyListEl.innerHTML = '';
-      conversationHistory.slice().reverse().forEach((item, index) => {
-        const actualIndex = conversationHistory.length - 1 - index;
-        const div = document.createElement('div');
-        div.className = 'history-item';
-        div.onclick = () => loadFromHistory(actualIndex);
-        div.innerHTML = `
-          <span class="text">${item.prompt.substring(0, 50)}${item.prompt.length > 50 ? '...' : ''}</span>
-          <span class="timestamp">${new Date(item.timestamp).toLocaleTimeString('nl-NL')}</span>
-        `;
-        historyListEl.appendChild(div);
-      });
-    }
-
-    function loadFromHistory(index) {
-      const item = conversationHistory[index];
-      promptEl.value = item.prompt;
-      updateCharCount();
-      promptEl.focus();
-    }
-
-    function addToHistory(prompt, response, provider, model) {
-      conversationHistory.unshift({
-        prompt: prompt,
-        response: response,
-        timestamp: new Date().toISOString(),
-        provider: provider,
-        model: model
-      });
+    function addMessage(text, isUser = false, isSystem = false) {
+      const messageEl = document.createElement('div');
+      messageEl.className = 'message ' + (isUser ? 'user' : isSystem ? 'system' : 'ai');
       
-      if (conversationHistory.length > MAX_HISTORY) {
-        conversationHistory = conversationHistory.slice(0, MAX_HISTORY);
+      if (isSystem) {
+        messageEl.innerHTML = text;
+      } else {
+        messageEl.innerHTML = formatResponse(text);
       }
       
-      localStorage.setItem('climoraHistory', JSON.stringify(conversationHistory));
-      renderHistory();
+      chatMessagesEl.appendChild(messageEl);
+      setTimeout(() => {
+        chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+      }, 10);
+      
+      return messageEl;
     }
 
-    function clearHistory() {
-      if (confirm('Weet je zeker dat je de gespreksgeschiedenis wilt wissen?')) {
-        conversationHistory = [];
-        localStorage.setItem('climoraHistory', JSON.stringify(conversationHistory));
-        renderHistory();
-        showToast('Gespreksgeschiedenis gewist', 'success');
+    function addTypingIndicator() {
+      const typingEl = document.createElement('div');
+      typingEl.className = 'typing-indicator';
+      typingEl.innerHTML = '
+        <div class="typing-dots">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+        <span>Newly denkt na...</span>
+      ';
+      chatMessagesEl.appendChild(typingEl);
+      chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+      return typingEl;
+    }
+
+    function removeTypingIndicator(typingEl) {
+      if (typingEl && typingEl.parentNode) {
+        typingEl.parentNode.removeChild(typingEl);
       }
+    }
+
+    function formatResponse(text) {
+      let formatted = text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+      
+      formatted = formatted.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
+      formatted = formatted.replace(/`([^`]+)`/g, '<code>$1</code>');
+      formatted = formatted.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+      formatted = formatted.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+      formatted = formatted.replace(/\n/g, '<br>');
+      
+      return formatted;
     }
 
     function setPrompt(text) {
@@ -1208,129 +895,85 @@
       const prompt = promptEl.value.trim();
       if (!prompt || prompt.length > 2000) return;
 
-      // Get current provider and model
-      const provider = document.getElementById('default-provider').value;
-      const model = document.getElementById('default-model').value;
+      addMessage(prompt, true);
+      promptEl.value = '';
+      updateCharCount();
 
-      // Clear suggestions on mobile
-      if (window.innerWidth <= 768) {
-        document.querySelector('.suggestions').style.display = 'none';
-      }
-
-      // Show loading
-      responseAreaEl.innerHTML = `
-        <div class="response-card">
-          <div class="response-header">
-            <span class="response-label">Climora (${providers[provider].name}) denkt na...</span>
-            <div class="response-meta">
-              <span>${model}</span>
-            </div>
-          </div>
-          <div class="typing-indicator">
-            <span></span>
-            <span></span>
-            <span></span>
-          </div>
-        </div>
-      `;
-
-      // Scroll to response
-      responseAreaEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-
-      const sendButton = document.getElementById('send-button');
-      const originalText = sendButton.innerHTML;
-      sendButton.disabled = true;
-      sendButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Wachten...';
+      const typingEl = addTypingIndicator();
+      
+      const originalText = sendButtonEl.innerHTML;
+      sendButtonEl.disabled = true;
+      sendButtonEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Wachten...</span>';
 
       try {
         const isGatewayActive = await checkGateway();
+        
         if (!isGatewayActive) {
-          throw new Error('Gateway niet bereikbaar op ' + settings.gatewayUrl);
+          await new Promise(resolve => setTimeout(resolve, 1500));
+          
+          const responses = [
+            "Newly is uniek omdat we <strong>100% privacy</strong> bieden. Geen tracking, geen telemetrie, geen data-verkoop. Alles blijft lokaal of op je eigen server.",
+            "Het grootste verschil? Newly werkt <strong>voor jou</strong>, niet voor adverteerders. Geen reclame, geen sponsored content, geen verborgen agendas.",
+            "Met Newly kun je je <strong>eigen sync-server</strong> draaien op een Raspberry Pi. Geen afhankelijkheid van Google of Firefox accounts!",
+            "De AI-assistent in Newly kan <strong>rechtstreeks met webpagina's interactieren</strong>. Vraag om samenvattingen, uitleg, of vertalingen van elke pagina.",
+            "Newly gebruikt <strong>DuckDuckGo als standaard zoekmachine</strong> voor maximale privacy. Geen zoekgeschiedenis die wordt opgeslagen of verkocht.",
+            "Alles in Newly is <strong>lokaal-first</strong>. Je API-sleutels blijven op je apparaat, je data blijft van jou."
+          ];
+          
+          const response = responses[Math.floor(Math.random() * responses.length)];
+          removeTypingIndicator(typingEl);
+          addMessage(response);
+          addToHistory(prompt, response);
+          
+        } else {
+          const res = await fetch('http://localhost:8766/ask', {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            body: JSON.stringify({ 
+              prompt: prompt,
+              stream: false
+            })
+          });
+
+          if (!res.ok) {
+            throw new Error('Gateway returned error: ' + res.status);
+          }
+
+          const data = await res.json();
+          const answer = data.answer || data.response || data.error || JSON.stringify(data);
+          
+          removeTypingIndicator(typingEl);
+          addMessage(answer);
+          addToHistory(prompt, answer);
         }
-
-        const res = await fetch(`${settings.gatewayUrl}/ask`, {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
-          body: JSON.stringify({ 
-            prompt: prompt,
-            provider: provider,
-            model: model,
-            stream: false
-          })
-        });
-
-        if (!res.ok) {
-          throw new Error('Gateway returned error: ' + res.status);
-        }
-
-        const data = await res.json();
-        
-        // Format response
-        const answer = data.answer || data.error || JSON.stringify(data);
-        const responseProvider = data.provider || provider;
-        const responseModel = data.model || model;
-        
-        responseAreaEl.innerHTML = `
-          <div class="response-card">
-            <div class="response-header">
-              <span class="response-label">Climora (${providers[responseProvider] ? providers[responseProvider].name : responseProvider})</span>
-              <div class="response-meta">
-                <span>${responseModel}</span>
-                <span>${new Date().toLocaleTimeString('nl-NL')}</span>
-              </div>
-            </div>
-            <div class="response-text">${formatResponse(answer)}</div>
-          </div>
-        `;
-
-        // Add to history
-        addToHistory(prompt, answer, responseProvider, responseModel);
 
       } catch (err) {
-        responseAreaEl.innerHTML = `
-          <div class="error-message">
-            <i class="fas fa-exclamation-triangle"></i>
-            <span><strong>Fout:</strong> ${err.message}</span>
-          </div>
-        `;
+        removeTypingIndicator(typingEl);
+        addMessage('<i class="fas fa-exclamation-triangle"></i> <strong>Fout:</strong> ' + err.message, false, false);
       } finally {
-        sendButton.disabled = false;
-        sendButton.innerHTML = originalText;
-        promptEl.value = '';
-        updateCharCount();
-        promptEl.style.height = 'auto';
+        sendButtonEl.disabled = false;
+        sendButtonEl.innerHTML = originalText;
+        promptEl.focus();
       }
     }
 
-    function formatResponse(text) {
-      // Escape HTML
-      let formatted = text
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
+    function addToHistory(prompt, response) {
+      conversationHistory.unshift({
+        prompt: prompt,
+        response: response,
+        timestamp: new Date().toISOString()
+      });
       
-      // Format code blocks
-      formatted = formatted.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
+      if (conversationHistory.length > MAX_HISTORY) {
+        conversationHistory = conversationHistory.slice(0, MAX_HISTORY);
+      }
       
-      // Format inline code
-      formatted = formatted.replace(/`([^`]+)`/g, '<code>$1</code>');
-      
-      // Format bold
-      formatted = formatted.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-      
-      // Format italic
-      formatted = formatted.replace(/\*([^*]+)\*/g, '<em>$1</em>');
-      
-      // Format line breaks
-      formatted = formatted.replace(/\n/g, '<br>');
-      
-      return formatted;
+      localStorage.setItem('newlyWebHistory', JSON.stringify(conversationHistory));
     }
 
-    // Allow Enter to send (Shift+Enter for new line)
     promptEl.addEventListener('keydown', function(e) {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
@@ -1338,121 +981,25 @@
       }
     });
 
-    // Settings functions
-    function openSettings() {
-      settingsPanel.classList.add('show');
-      modalOverlay.classList.add('show');
-      
-      // Load current settings
-      document.getElementById('default-provider').value = settings.defaultProvider;
-      document.getElementById('gateway-url').value = settings.gatewayUrl;
-      updateModelList();
-      initProviderSelector();
-    }
-
-    function closeSettings() {
-      settingsPanel.classList.remove('show');
-      modalOverlay.classList.remove('show');
-    }
-
-    function saveSettings() {
-      settings.defaultProvider = document.getElementById('default-provider').value;
-      settings.defaultModel = document.getElementById('default-model').value;
-      settings.gatewayUrl = document.getElementById('gateway-url').value;
-      
-      localStorage.setItem('climora_default_provider', settings.defaultProvider);
-      localStorage.setItem('climora_default_model', settings.defaultModel);
-      localStorage.setItem('climora_gateway_url', settings.gatewayUrl);
-      
-      currentProvider = settings.defaultProvider;
-      currentModel = settings.defaultModel;
-      
-      showToast('Instellingen opgeslagen', 'success');
-      closeSettings();
-      
-      // Refresh gateway status
-      checkGateway();
-    }
-
-    function saveApiKey() {
-      const provider = document.getElementById('key-provider').value;
-      const apiKey = document.getElementById('api-key-input').value.trim();
-      
-      if (!apiKey) {
-        showToast('Voer een API sleutel in', 'error');
-        return;
-      }
-      
-      try {
-        const res = fetch(`${settings.gatewayUrl}/config/keys`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            action: 'set',
-            provider: provider,
-            key: apiKey
-          })
-        });
-        
-        showToast(`API sleutel voor ${providers[provider].name} opgeslagen`, 'success');
-        document.getElementById('api-key-input').value = '';
-      } catch (err) {
-        showToast('Fout bij opslaan: ' + err.message, 'error');
-      }
-    }
-
-    function removeApiKey() {
-      const provider = document.getElementById('key-provider').value;
-      
-      if (confirm(`Weet je zeker dat je de API sleutel voor ${providers[provider].name} wilt verwijderen?`)) {
-        try {
-          const res = fetch(`${settings.gatewayUrl}/config/keys`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              action: 'remove',
-              provider: provider
-            })
-          });
-          
-          showToast(`API sleutel voor ${providers[provider].name} verwijderd`, 'success');
-        } catch (err) {
-          showToast('Fout bij verwijderen: ' + err.message, 'error');
-        }
-      }
-    }
-
-    function showToast(message, type = '') {
-      toastEl.textContent = message;
-      toastEl.className = 'show';
-      if (type) {
-        toastEl.classList.add(type);
-      }
-      
-      setTimeout(() => {
-        toastEl.classList.remove('show');
-        toastEl.className = '';
-      }, 3000);
-    }
-
-    // Initial render
-    renderHistory();
     updateCharCount();
-    initProviderSelector();
 
-    // Focus prompt on load
+    if (!localStorage.getItem('newlyWebVisited')) {
+      localStorage.setItem('newlyWebVisited', 'true');
+      setTimeout(() => {
+        addMessage(
+          "Hoi! Ik ben Newly AI. Ik ben hier om je te helpen met al je vragen over het web. " +
+          "Probeer maar: vraag me om een samenvatting, uitleg, of vertaling. \n\n" +
+          "<strong>Waarom Newly?</strong>\n" +
+          "✅ 100% Privacy - Geen tracking\n" +
+          "✅ AI Assistent - Altijd klaar om te helpen\n" +
+          "✅ Eigen Sync - Geen cloud afhankelijkheid\n" +
+          "✅ Lokaal Everything - Jouw data, jouw controle",
+          false
+        );
+      }, 500);
+    }
+
     promptEl.focus();
-
-    // Update provider selector when provider changes
-    document.getElementById('default-provider').addEventListener('change', function() {
-      currentProvider = this.value;
-      updateModelList();
-      updateProviderSelector();
-    });
   </script>
 </body>
 </html>
