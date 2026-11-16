@@ -1,0 +1,9 @@
+This is a placeholder file. To create a real Windows executable:
+
+1. Install Node.js 18+ from https://nodejs.org/
+2. Install electron-builder: npm install -g electron-builder
+3. Run: npm run build:win
+
+The real executable will be created in the dist/ directory.
+
+For now, use start-newly.bat to start the browser.

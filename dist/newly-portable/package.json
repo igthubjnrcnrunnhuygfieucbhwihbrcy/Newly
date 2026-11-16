@@ -1,0 +1,67 @@
+{
+  "name": "newly",
+  "productName": "Newly",
+  "version": "1.0.0",
+  "description": "Newly - De Browser Die Werkt VOOR Jou. 100% Privacy, AI Assistent, Eigen Sync-Server.",
+  "author": "Newly Team",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win --x64",
+    "build:win32": "electron-builder --win --ia32",
+    "pack": "npm run build:win",
+    "dist": "npm run build:win"
+  },
+  "build": {
+    "appId": "com.newly.browser",
+    "productName": "Newly",
+    "copyright": "Copyright © 2024 Newly Team",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "**/*",
+      "index.html",
+      "main.js",
+      "preload.js"
+    ],
+    "extraResources": [],
+    "win": {
+      "target": ["nsis", "zip"],
+      "icon": "build/icon.ico",
+      "requestedExecutionLevel": "requireAdministrator"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Newly",
+      "menuCategory": "Newly"
+    },
+    "compression": "store",
+    "publish": null
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^24.9.0"
+  },
+  "dependencies": {},
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "browser",
+    "privacy",
+    "ai",
+    "chromium",
+    "electron",
+    "newly"
+  ],
+  "license": "MIT"
+}
